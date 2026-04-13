@@ -1,0 +1,14 @@
+# Copia este archivo a config.yml y rellena:
+# - tunnel: UUID del túnel (salida de: cloudflared tunnel create visitas-app)
+# - credentials-file: ruta al .json que crea Cloudflare (suele estar en %USERPROFILE%\.cloudflared\)
+# - hostname: subdominio que configuraste en Zero Trust (DNS en Cloudflare)
+#
+# Uso: cloudflared tunnel --config cloudflared/config.yml run NOMBRE_DEL_TUNNEL
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: C:/Users/TU_USUARIO/.cloudflared/REPLACE_WITH_TUNNEL_UUID.json
+
+ingress:
+  - hostname: visitas.tudominio.com
+    service: http://127.0.0.1:3000
+  - service: http_status:404

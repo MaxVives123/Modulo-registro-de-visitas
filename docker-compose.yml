@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: visitas_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-visitas_db}
+      POSTGRES_USER: ${DB_USER:-visitas_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-V1s1t4s_S3cur3_2024!}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-visitas_admin} -d ${DB_NAME:-visitas_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: visitas_app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-visitas_db}
+      DB_USER: ${DB_USER:-visitas_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-V1s1t4s_S3cur3_2024!}
+      JWT_SECRET: ${JWT_SECRET:-x7K9mP2qR5vT8wA1dF4gH6jL0nB3cE9}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      APP_NAME: ${APP_NAME:-Sistema de Registro de Visitas}
+      COMPANY_NAME: ${COMPANY_NAME:-Mi Empresa S.A.}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  seed:
+    build: .
+    container_name: visitas_seed
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-visitas_db}
+      DB_USER: ${DB_USER:-visitas_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-V1s1t4s_S3cur3_2024!}
+    command: node backend/seeds/demo.js
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - seed
+
+volumes:
+  pgdata:
