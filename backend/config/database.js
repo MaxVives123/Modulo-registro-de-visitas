@@ -19,7 +19,10 @@ const logging = process.env.NODE_ENV === 'development' ? (msg) => logger.debug(m
 function createSequelize() {
   if (process.env.DATABASE_URL) {
     const dialectOptions = {};
-    if (process.env.DATABASE_SSL !== 'false') {
+    // Railway suele incluir ssl en la URL; forzar SSL extra a veces rompe la conexión.
+    const urlHasSsl = /sslmode|ssl=true/i.test(process.env.DATABASE_URL);
+    const wantSsl = process.env.DATABASE_SSL === 'true' || (process.env.DATABASE_SSL !== 'false' && !urlHasSsl);
+    if (wantSsl) {
       dialectOptions.ssl = { require: true, rejectUnauthorized: false };
     }
     return new Sequelize(process.env.DATABASE_URL, {

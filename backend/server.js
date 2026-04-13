@@ -89,17 +89,22 @@ app.use(notFound);
 app.use(errorHandler);
 
 async function startServer() {
+  // Escuchar antes de la BD: Railway healthcheck pega a /api/health mientras Postgres enlaza.
+  await new Promise((resolve, reject) => {
+    const server = app.listen(PORT, HOST, () => {
+      logger.info(`Servidor escuchando en http://${HOST}:${PORT}`);
+      logger.info(`Entorno: ${process.env.NODE_ENV || 'development'}`);
+      resolve();
+    });
+    server.on('error', reject);
+  });
+
   try {
     await connectDB();
     await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
     logger.info('Modelos sincronizados con la base de datos');
-
-    app.listen(PORT, HOST, () => {
-      logger.info(`Servidor iniciado en http://${HOST}:${PORT}`);
-      logger.info(`Entorno: ${process.env.NODE_ENV || 'development'}`);
-    });
   } catch (error) {
-    logger.error('Error al iniciar el servidor:', error);
+    logger.error('Error al conectar o sincronizar la base de datos:', error);
     process.exit(1);
   }
 }
