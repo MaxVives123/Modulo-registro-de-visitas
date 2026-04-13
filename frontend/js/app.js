@@ -265,11 +265,7 @@ const App = {
       return;
     }
 
-    if (!this.editingVisitId && this.signaturePad) {
-      if (this.signaturePad.isEmpty()) {
-        this.setVisitFormError('La firma del visitante es obligatoria', 'danger');
-        return;
-      }
+    if (!this.editingVisitId && this.signaturePad && !this.signaturePad.isEmpty()) {
       data.signature = this.signaturePad.toDataURL('image/png');
     }
 

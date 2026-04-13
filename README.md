@@ -217,43 +217,9 @@ Edita el archivo `.env` para personalizar:
 2. En el servicio de la app, **Variables**: referencia `DATABASE_URL` desde la base de datos (o copia el valor que muestre Railway).
 3. Añade al menos: `JWT_SECRET` (cadena larga aleatoria), `NODE_ENV=production`, `TRUST_PROXY=1`.
 4. Opcional: `APP_URL` con la URL pública `https://…` que te asigne Railway (QR y enlaces coherentes).
-5. **Datos demo (usuarios `admin` / `admin123`)**: ver sección siguiente.
+5. Tras el primer deploy, ejecuta el seed si quieres datos demo: en Railway abre una shell o un job one-off con `node backend/seeds/demo.js` (mismas variables que la app).
 
 El archivo `railway.toml` fuerza build por `Dockerfile`.
-
-### Seed en producción (cómo suele hacerse)
-
-En equipos con Node + Postgres lo habitual es:
-
-- **Migraciones** para el esquema (tablas); en este proyecto el servidor usa `sequelize.sync` al arrancar.
-- **Seed** como script aparte que se ejecuta **a mano** o en **CI** la primera vez, no en cada request.
-
-Opciones para ejecutar el seed **contra Railway**:
-
-| Método | Cuándo |
-|--------|--------|
-| **Railway Shell** (si tu plan lo muestra) | `cd` al directorio de la app y `node backend/seeds/demo.js` con las mismas variables que el contenedor. |
-| **Railway CLI** | `railway run -- npm run seed` desde la carpeta `backend` (tras `railway link`). |
-| **Desde tu PC** | Usa la URL **pública** de Postgres (`DATABASE_PUBLIC_URL` en Variables del Postgres), no `postgres.railway.internal`. Luego en `backend`: `npm ci` y `npm run seed`. |
-
-En **Windows**, con PowerShell en la raíz del proyecto:
-
-```powershell
-$env:DATABASE_URL = "PEGA_AQUI_DATABASE_PUBLIC_URL_DE_RAILWAY"
-.\scripts\seed-railway.ps1
-```
-
-O manualmente:
-
-```powershell
-cd backend
-npm ci
-$env:DATABASE_URL = "..."
-$env:NODE_ENV = "production"
-npm run seed
-```
-
-**Importante:** el seed actual hace `sync({ force: true })` → **borra todas las tablas y datos** y vuelve a crearlas. Solo en bases vacías o de prueba.
 
 ### Subir el código a GitHub (primer push)
 
