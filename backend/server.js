@@ -105,6 +105,10 @@ async function startServer() {
 
   try {
     await connectDB();
+    // Tablas creadas antes de añadir el campo: en producción alter:false no añade columnas nuevas.
+    if (sequelize.getDialect() === 'postgres') {
+      await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS signature TEXT;');
+    }
     await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
     logger.info('Modelos sincronizados con la base de datos');
   } catch (error) {
