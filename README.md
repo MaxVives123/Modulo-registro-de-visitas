@@ -221,6 +221,18 @@ Edita el archivo `.env` para personalizar:
 
 El archivo `railway.toml` fuerza build por `Dockerfile`.
 
+### Subir el código a GitHub (primer push)
+
+Si este proyecto es un repo nuevo en tu máquina:
+
+```bash
+cd "ruta/al/Modulo Registro de Visitas"
+git remote add origin https://github.com/TU_USUARIO/TU_REPO.git
+git push -u origin main
+```
+
+(Crea antes el repositorio vacío en GitHub, sin README, o usa el que ya tengas conectado a Railway.)
+
 ## Licencia
 
 Uso interno empresarial.
