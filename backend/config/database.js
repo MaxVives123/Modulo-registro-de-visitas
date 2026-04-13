@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 
 const pool = {
   max: 10,
-  min: 2,
+  min: 0,
   acquire: 30000,
   idle: 10000,
 };
@@ -15,22 +15,50 @@ const define = {
 
 const logging = process.env.NODE_ENV === 'development' ? (msg) => logger.debug(msg) : false;
 
+function formatDbError(error) {
+  const msg = [
+    error?.message,
+    error?.parent?.message,
+    error?.original?.message,
+  ].filter(Boolean);
+  const text = msg.length ? msg.join(' | ') : '';
+  const code = error?.parent?.code || error?.original?.code || error?.code || '';
+  const suffix = code ? ` [${code}]` : '';
+  return (text || 'sin mensaje') + suffix;
+}
+
+/** SSL: red privada Railway (*.railway.internal) suele ir sin capa SSL extra en Sequelize. */
+function dialectOptionsForDatabaseUrl(databaseUrl) {
+  if (!databaseUrl) return undefined;
+  if (process.env.DATABASE_SSL === 'false') return undefined;
+  if (process.env.DATABASE_SSL === 'true') {
+    return { ssl: { require: true, rejectUnauthorized: false } };
+  }
+  try {
+    const normalized = databaseUrl.replace(/^postgresql:/, 'http:');
+    const { hostname } = new URL(normalized);
+    if (hostname.includes('railway.internal')) {
+      return undefined;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  if (/sslmode=require|ssl=true/i.test(databaseUrl)) {
+    return undefined;
+  }
+  return { ssl: { require: true, rejectUnauthorized: false } };
+}
+
 /** Railway/Render suelen exponer DATABASE_URL; Docker local usa DB_* por separado. */
 function createSequelize() {
   if (process.env.DATABASE_URL) {
-    const dialectOptions = {};
-    // Railway suele incluir ssl en la URL; forzar SSL extra a veces rompe la conexión.
-    const urlHasSsl = /sslmode|ssl=true/i.test(process.env.DATABASE_URL);
-    const wantSsl = process.env.DATABASE_SSL === 'true' || (process.env.DATABASE_SSL !== 'false' && !urlHasSsl);
-    if (wantSsl) {
-      dialectOptions.ssl = { require: true, rejectUnauthorized: false };
-    }
+    const dialectOptions = dialectOptionsForDatabaseUrl(process.env.DATABASE_URL);
     return new Sequelize(process.env.DATABASE_URL, {
       dialect: 'postgres',
       logging,
       pool,
       define,
-      dialectOptions: Object.keys(dialectOptions).length ? dialectOptions : undefined,
+      dialectOptions: dialectOptions || undefined,
     });
   }
 
@@ -51,14 +79,25 @@ function createSequelize() {
 
 const sequelize = createSequelize();
 
-async function connectDB(retries = 10, delay = 3000) {
+async function connectDB(retries = 20, delay = 3000) {
+  if (process.env.DATABASE_URL) {
+    logger.info('DATABASE_URL está definida (conexión a PostgreSQL)');
+  } else if (process.env.DB_HOST && process.env.DB_NAME) {
+    logger.info(`Conexión DB por DB_HOST=${process.env.DB_HOST}`);
+  } else {
+    logger.error(
+      'Falta DATABASE_URL o el conjunto DB_HOST + DB_NAME + DB_USER + DB_PASSWORD. En Railway: en el servicio web, Variables → referencia la variable DATABASE_URL del plugin PostgreSQL.'
+    );
+    process.exit(1);
+  }
+
   for (let i = 0; i < retries; i++) {
     try {
       await sequelize.authenticate();
       logger.info('Conexión a PostgreSQL establecida correctamente');
       return;
     } catch (error) {
-      logger.warn(`Intento ${i + 1}/${retries} - Error conectando a DB: ${error.message}`);
+      logger.warn(`Intento ${i + 1}/${retries} - Error conectando a DB: ${formatDbError(error)}`);
       if (i < retries - 1) {
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
