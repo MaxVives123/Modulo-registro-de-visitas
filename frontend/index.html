@@ -6,7 +6,7 @@
   <title>Sistema de Registro de Visitas</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="css/styles.css?v=11" rel="stylesheet">
+  <link href="css/styles.css?v=16" rel="stylesheet">
 </head>
 <body>
   <!-- Login Screen -->
@@ -46,7 +46,7 @@
     <!-- Sidebar -->
     <nav id="sidebar" class="sidebar">
       <div class="sidebar-header">
-        <img src="img/logo.png?v=11" alt="TAM-RH Visitas" class="sidebar-logo">
+        <img src="img/logo.png?v=16" alt="TAM-RH Visitas" class="sidebar-logo">
       </div>
       <ul class="sidebar-nav">
         <li>
@@ -230,19 +230,14 @@
                   <label class="form-label small fw-semibold">Hasta</label>
                   <input type="date" class="form-control" id="filterDateTo">
                 </div>
-                <div class="col-6 col-md-2">
+                <div class="col-12 col-md-2">
+                  <label class="form-label small fw-semibold d-none d-md-block">&nbsp;</label>
                   <div class="d-flex gap-1">
-                    <button class="btn btn-primary flex-fill" id="btnSearch" title="Buscar">
+                    <button class="btn btn-primary flex-grow-1" id="btnSearch" title="Buscar">
                       <i class="bi bi-search"></i>
                     </button>
                     <button class="btn btn-outline-secondary" id="btnClearFilters" title="Limpiar filtros">
                       <i class="bi bi-x-lg"></i>
-                    </button>
-                    <button class="btn btn-success" id="btnExportCSV" title="Exportar CSV">
-                      <i class="bi bi-filetype-csv"></i>
-                    </button>
-                    <button class="btn btn-danger" id="btnExportPDF" title="Exportar PDF">
-                      <i class="bi bi-filetype-pdf"></i>
                     </button>
                   </div>
                 </div>
@@ -251,9 +246,18 @@
           </div>
 
           <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Lista de Visitas</h6>
-              <button class="btn btn-primary btn-sm" onclick="App.navigate('new-visit')">
+            <div class="card-header bg-white d-flex flex-wrap align-items-center gap-2 py-3">
+              <h6 class="mb-0 me-auto"><i class="bi bi-list-ul me-2"></i>Lista de Visitas</h6>
+              <div class="d-flex flex-wrap align-items-center gap-1">
+                <span class="small text-muted me-1 d-none d-sm-inline">Exportar</span>
+                <button type="button" class="btn btn-success btn-sm" id="btnExportExcel" title="Exportar Excel (.xlsx)">
+                  <i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" id="btnExportPDF" title="Exportar PDF">
+                  <i class="bi bi-filetype-pdf me-1"></i>PDF
+                </button>
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" onclick="App.navigate('new-visit')">
                 <i class="bi bi-plus-lg me-1"></i>Nueva Visita
               </button>
             </div>
@@ -521,7 +525,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
-  <script src="js/api.js?v=12"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/api.js?v=16"></script>
+  <script src="js/app.js?v=16"></script>
 </body>
 </html>

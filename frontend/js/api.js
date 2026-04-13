@@ -154,16 +154,23 @@ const API = {
     window.URL.revokeObjectURL(blobUrl);
   },
 
-  async exportCSV(params = {}) {
+  async exportExcel(params = {}) {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) query.set(k, v); });
-    const response = await this.request(`/visits/export/csv?${query.toString()}`);
+    const url = `${this.baseUrl}/visits/export/xlsx?${query.toString()}`;
+    const headers = {};
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw { error: data.error || 'Error al exportar Excel' };
+    }
     const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
+    const blobUrl = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `visitas_${new Date().toISOString().split('T')[0]}.csv`;
+    a.href = blobUrl;
+    a.download = `visitas_${new Date().toISOString().split('T')[0]}.xlsx`;
     a.click();
-    window.URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(blobUrl);
   },
 };

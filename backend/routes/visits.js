@@ -11,6 +11,7 @@ router.use(authMiddleware);
 router.get('/', visitValidation.list, validationMiddleware, visitController.list);
 router.get('/destinations', visitController.getDestinations);
 router.get('/export/csv', visitController.exportCSV);
+router.get('/export/xlsx', visitController.exportExcel);
 router.get('/export/pdf', pdfController.exportListPDF);
 router.get('/:id/pdf', pdfController.exportVisitPDF);
 router.get('/:id', visitController.getById);

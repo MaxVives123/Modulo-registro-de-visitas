@@ -39,7 +39,7 @@ const App = {
 
     document.getElementById('btnSearch').addEventListener('click', () => this.loadVisits());
     document.getElementById('btnClearFilters').addEventListener('click', () => this.clearFilters());
-    document.getElementById('btnExportCSV').addEventListener('click', () => this.exportCSV());
+    document.getElementById('btnExportExcel')?.addEventListener('click', () => this.exportExcel());
     document.getElementById('btnExportPDF').addEventListener('click', () => this.exportPDF());
 
     document.getElementById('searchInput').addEventListener('keypress', (e) => {
@@ -543,32 +543,30 @@ const App = {
     this.loadVisits();
   },
 
+  getVisitExportParams() {
+    return {
+      search: document.getElementById('searchInput')?.value?.trim() || '',
+      status: document.getElementById('filterStatus')?.value || '',
+      date_from: document.getElementById('filterDateFrom')?.value || '',
+      date_to: document.getElementById('filterDateTo')?.value || '',
+    };
+  },
+
   async exportPDF() {
     try {
-      const params = {
-        search: document.getElementById('searchInput')?.value || '',
-        status: document.getElementById('filterStatus')?.value || '',
-        date_from: document.getElementById('filterDateFrom')?.value || '',
-        date_to: document.getElementById('filterDateTo')?.value || '',
-      };
-      await API.exportPDF(params);
+      await API.exportPDF(this.getVisitExportParams());
       this.toast('PDF descargado', 'success');
     } catch (err) {
       this.toast('Error al exportar PDF', 'danger');
     }
   },
 
-  async exportCSV() {
+  async exportExcel() {
     try {
-      const params = {
-        status: document.getElementById('filterStatus')?.value || '',
-        date_from: document.getElementById('filterDateFrom')?.value || '',
-        date_to: document.getElementById('filterDateTo')?.value || '',
-      };
-      await API.exportCSV(params);
-      this.toast('Archivo CSV descargado', 'success');
+      await API.exportExcel(this.getVisitExportParams());
+      this.toast('Archivo Excel descargado', 'success');
     } catch (err) {
-      this.toast('Error al exportar CSV', 'danger');
+      this.toast(err?.error || 'Error al exportar Excel', 'danger');
     }
   },
 

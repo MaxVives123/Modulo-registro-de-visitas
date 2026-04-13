@@ -1,7 +1,9 @@
 const { Op } = require('sequelize');
+const ExcelJS = require('exceljs');
 const { v4: uuidv4 } = require('uuid');
 const { Visit, User } = require('../models');
 const logger = require('../utils/logger');
+const { buildVisitExportWhere } = require('../utils/visitExportWhere');
 const { notifyAdmins, notifyUser } = require('./notificationController');
 
 async function list(req, res, next) {
@@ -237,18 +239,7 @@ async function getDestinations(req, res, next) {
 
 async function exportCSV(req, res, next) {
   try {
-    const where = {};
-
-    if (req.query.status) where.status = req.query.status;
-    if (req.query.date_from || req.query.date_to) {
-      where.created_at = {};
-      if (req.query.date_from) where.created_at[Op.gte] = new Date(req.query.date_from);
-      if (req.query.date_to) {
-        const dateTo = new Date(req.query.date_to);
-        dateTo.setHours(23, 59, 59, 999);
-        where.created_at[Op.lte] = dateTo;
-      }
-    }
+    const where = buildVisitExportWhere(req.query);
 
     const visits = await Visit.findAll({
       where,
@@ -296,4 +287,89 @@ async function exportCSV(req, res, next) {
   }
 }
 
-module.exports = { list, getById, create, update, remove, checkIn, checkOut, getDestinations, exportCSV };
+const STATUS_LABELS_EXPORT = {
+  pending: 'Pendiente',
+  checked_in: 'En instalaciones',
+  checked_out: 'Salida registrada',
+  cancelled: 'Cancelada',
+};
+
+async function exportExcel(req, res, next) {
+  try {
+    const where = buildVisitExportWhere(req.query);
+    const visits = await Visit.findAll({
+      where,
+      include: [{ model: User, as: 'creator', attributes: ['full_name'] }],
+      order: [['created_at', 'DESC']],
+      raw: true,
+      nest: true,
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Sistema de Registro de Visitas';
+    const sheet = workbook.addWorksheet('Visitas', {
+      views: [{ state: 'frozen', ySplit: 1 }],
+    });
+
+    const headers = [
+      'ID', 'Visitante', 'Documento', 'Empresa', 'Email', 'Teléfono',
+      'Destino', 'Motivo', 'Estado', 'Entrada', 'Salida', 'Registrado por', 'Fecha creación',
+    ];
+    sheet.addRow(headers);
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4361EE' },
+    };
+    headerRow.alignment = { vertical: 'middle' };
+
+    visits.forEach((v) => {
+      sheet.addRow([
+        v.id,
+        v.visitor_name,
+        v.visitor_document,
+        v.visitor_company || '',
+        v.visitor_email || '',
+        v.visitor_phone || '',
+        v.destination,
+        v.purpose,
+        STATUS_LABELS_EXPORT[v.status] || v.status,
+        v.check_in ? new Date(v.check_in).toLocaleString('es-ES') : '',
+        v.check_out ? new Date(v.check_out).toLocaleString('es-ES') : '',
+        v.creator?.full_name || '',
+        new Date(v.created_at).toLocaleString('es-ES'),
+      ]);
+    });
+
+    const widths = [8, 28, 16, 22, 24, 14, 22, 32, 18, 20, 20, 22, 20];
+    sheet.columns.forEach((col, i) => {
+      col.width = widths[i] || 16;
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename=visitas_${dateStr}.xlsx`);
+
+    await workbook.xlsx.write(res);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = {
+  list,
+  getById,
+  create,
+  update,
+  remove,
+  checkIn,
+  checkOut,
+  getDestinations,
+  exportCSV,
+  exportExcel,
+};

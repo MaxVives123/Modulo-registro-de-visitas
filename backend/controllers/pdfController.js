@@ -1,6 +1,6 @@
 const PDFDocument = require('pdfkit');
-const { Op } = require('sequelize');
 const { Visit, User } = require('../models');
+const { buildVisitExportWhere } = require('../utils/visitExportWhere');
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -17,33 +17,9 @@ function fmtDate(d) {
   });
 }
 
-function buildWhere(query) {
-  const where = {};
-  if (query.status) where.status = query.status;
-  if (query.search) {
-    const s = `%${query.search}%`;
-    where[Op.or] = [
-      { visitor_name: { [Op.iLike]: s } },
-      { visitor_document: { [Op.iLike]: s } },
-      { visitor_company: { [Op.iLike]: s } },
-      { destination: { [Op.iLike]: s } },
-    ];
-  }
-  if (query.date_from || query.date_to) {
-    where.created_at = {};
-    if (query.date_from) where.created_at[Op.gte] = new Date(query.date_from);
-    if (query.date_to) {
-      const dt = new Date(query.date_to);
-      dt.setHours(23, 59, 59, 999);
-      where.created_at[Op.lte] = dt;
-    }
-  }
-  return where;
-}
-
 async function exportListPDF(req, res, next) {
   try {
-    const where = buildWhere(req.query);
+    const where = buildVisitExportWhere(req.query);
     const visits = await Visit.findAll({
       where,
       include: [{ model: User, as: 'creator', attributes: ['full_name'] }],
