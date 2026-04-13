@@ -4,12 +4,15 @@ const { authMiddleware } = require('../middleware/auth');
 const { validationMiddleware } = require('../middleware/errorHandler');
 const { visitValidation } = require('../utils/validators');
 const visitController = require('../controllers/visitController');
+const pdfController = require('../controllers/pdfController');
 
 router.use(authMiddleware);
 
 router.get('/', visitValidation.list, validationMiddleware, visitController.list);
 router.get('/destinations', visitController.getDestinations);
 router.get('/export/csv', visitController.exportCSV);
+router.get('/export/pdf', pdfController.exportListPDF);
+router.get('/:id/pdf', pdfController.exportVisitPDF);
 router.get('/:id', visitController.getById);
 router.post('/', visitValidation.create, validationMiddleware, visitController.create);
 router.put('/:id', visitValidation.update, validationMiddleware, visitController.update);

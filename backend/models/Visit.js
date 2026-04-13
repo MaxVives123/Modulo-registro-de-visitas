@@ -60,6 +60,10 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    signature: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     created_by: {
       type: DataTypes.INTEGER,
       allowNull: false,

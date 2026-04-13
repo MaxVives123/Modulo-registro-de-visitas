@@ -42,6 +42,9 @@ const visitValidation = {
       .trim()
       .isLength({ max: 500 }).withMessage('Las notas no pueden exceder 500 caracteres')
       .escape(),
+    body('signature')
+      .optional({ checkFalsy: true })
+      .isString().withMessage('La firma debe ser una cadena de texto'),
   ],
   update: [
     param('id').isInt({ min: 1 }).withMessage('ID inválido'),
@@ -85,6 +88,9 @@ const visitValidation = {
       .trim()
       .isLength({ max: 500 })
       .escape(),
+    body('signature')
+      .optional({ checkFalsy: true })
+      .isString().withMessage('La firma debe ser una cadena de texto'),
   ],
   list: [
     query('page').optional().isInt({ min: 1 }).withMessage('Página inválida'),
@@ -109,4 +115,45 @@ const authValidation = {
   ],
 };
 
-module.exports = { visitValidation, authValidation };
+const userValidation = {
+  create: [
+    body('username')
+      .trim()
+      .notEmpty().withMessage('El nombre de usuario es obligatorio')
+      .isLength({ min: 3, max: 50 }).withMessage('El usuario debe tener entre 3 y 50 caracteres')
+      .matches(/^[a-zA-Z0-9._-]+$/).withMessage('Solo letras, números, puntos, guiones y guiones bajos'),
+    body('password')
+      .notEmpty().withMessage('La contraseña es obligatoria')
+      .isLength({ min: 8, max: 100 }).withMessage('La contraseña debe tener al menos 8 caracteres'),
+    body('full_name')
+      .trim()
+      .notEmpty().withMessage('El nombre completo es obligatorio')
+      .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres')
+      .escape(),
+    body('role')
+      .optional()
+      .isIn(['admin', 'user']).withMessage('Rol inválido'),
+  ],
+  update: [
+    param('id').isInt({ min: 1 }).withMessage('ID inválido'),
+    body('full_name')
+      .optional()
+      .trim()
+      .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres')
+      .escape(),
+    body('role')
+      .optional()
+      .isIn(['admin', 'user']).withMessage('Rol inválido'),
+    body('active')
+      .optional()
+      .isBoolean().withMessage('El campo activo debe ser verdadero o falso'),
+  ],
+  changePassword: [
+    param('id').isInt({ min: 1 }).withMessage('ID inválido'),
+    body('password')
+      .notEmpty().withMessage('La contraseña es obligatoria')
+      .isLength({ min: 8, max: 100 }).withMessage('La contraseña debe tener al menos 8 caracteres'),
+  ],
+};
+
+module.exports = { visitValidation, authValidation, userValidation };

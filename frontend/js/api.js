@@ -100,9 +100,59 @@ const API = {
   checkOut(id) { return this.post(`/visits/${id}/checkout`); },
   getDestinations() { return this.get('/visits/destinations'); },
 
+  // Users (admin)
+  getUsers() { return this.get('/users'); },
+  getUser(id) { return this.get(`/users/${id}`); },
+  createUser(data) { return this.post('/users', data); },
+  updateUser(id, data) { return this.put(`/users/${id}`, data); },
+  changeUserPassword(id, password) { return this.put(`/users/${id}/password`, { password }); },
+  deleteUser(id) { return this.delete(`/users/${id}`); },
+
+  // Notifications
+  getNotifications(params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) query.set(k, v); });
+    return this.get(`/notifications?${query.toString()}`);
+  },
+  getUnreadCount() { return this.get('/notifications/unread-count'); },
+  markNotifRead(id) { return this.put(`/notifications/${id}/read`); },
+  markAllNotifsRead() { return this.put('/notifications/read-all'); },
+
   // QR
   generateQR(id) { return this.get(`/qr/generate/${id}`); },
   getCredential(id) { return this.get(`/qr/credential/${id}`); },
+
+  async exportPDF(params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) query.set(k, v); });
+    const url = `${this.baseUrl}/visits/export/pdf?${query.toString()}`;
+    const headers = {};
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw { error: 'Error al exportar PDF' };
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `visitas_${new Date().toISOString().split('T')[0]}.pdf`;
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+  },
+
+  async exportVisitPDF(id) {
+    const url = `${this.baseUrl}/visits/${id}/pdf`;
+    const headers = {};
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw { error: 'Error al exportar PDF' };
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `visita_${id}.pdf`;
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+  },
 
   async exportCSV(params = {}) {
     const query = new URLSearchParams();

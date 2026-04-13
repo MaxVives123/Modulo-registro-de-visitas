@@ -3,6 +3,8 @@ const App = {
   charts: {},
   visitListParams: { page: 1, limit: 15 },
   editingVisitId: null,
+  signaturePad: null,
+  notifInterval: null,
 
   init() {
     if (API.token && localStorage.getItem('user')) {
@@ -19,6 +21,13 @@ const App = {
     document.getElementById('logoutBtn').addEventListener('click', () => this.handleLogout());
     document.getElementById('visitForm').addEventListener('submit', (e) => this.handleVisitSubmit(e));
     document.getElementById('sidebarToggle').addEventListener('click', () => this.toggleSidebar());
+    document.getElementById('clearSignatureBtn').addEventListener('click', () => this.clearSignature());
+    document.getElementById('markAllReadBtn')?.addEventListener('click', () => this.handleMarkAllRead());
+    document.getElementById('notifBell')?.addEventListener('click', () => this.loadNotifications());
+    document.getElementById('btnNewUser')?.addEventListener('click', () => this.showUserForm());
+    document.getElementById('userFormSaveBtn')?.addEventListener('click', () => this.handleUserSave());
+    document.getElementById('cpSaveBtn')?.addEventListener('click', () => this.handleChangePassword());
+    this.initSignaturePad();
 
     document.querySelectorAll('.sidebar-link').forEach((link) => {
       link.addEventListener('click', (e) => {
@@ -31,6 +40,7 @@ const App = {
     document.getElementById('btnSearch').addEventListener('click', () => this.loadVisits());
     document.getElementById('btnClearFilters').addEventListener('click', () => this.clearFilters());
     document.getElementById('btnExportCSV').addEventListener('click', () => this.exportCSV());
+    document.getElementById('btnExportPDF').addEventListener('click', () => this.exportPDF());
 
     document.getElementById('searchInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') this.loadVisits();
@@ -55,6 +65,11 @@ const App = {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     document.getElementById('sidebarUserName').textContent = user.full_name || 'Usuario';
     document.getElementById('navUserName').textContent = user.full_name || 'Usuario';
+    const usersItem = document.getElementById('sidebarUsersItem');
+    if (usersItem) {
+      usersItem.classList.toggle('d-none', user.role !== 'admin');
+    }
+    this.startNotifPolling();
   },
 
   async handleLogin(e) {
@@ -93,6 +108,7 @@ const App = {
   handleLogout() {
     API.setToken(null);
     localStorage.removeItem('user');
+    this.stopNotifPolling();
     this.showLogin();
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
@@ -108,6 +124,7 @@ const App = {
       dashboard: 'Dashboard',
       visits: 'Lista de Visitas',
       'new-visit': 'Nueva Visita',
+      users: 'Gestión de Usuarios',
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
 
@@ -129,7 +146,35 @@ const App = {
         this.resetVisitForm();
         this.loadDestinations();
         break;
+      case 'users':
+        document.getElementById('pageUsers').classList.remove('d-none');
+        this.loadUsers();
+        break;
     }
+  },
+
+  initSignaturePad() {
+    const canvas = document.getElementById('signatureCanvas');
+    if (!canvas) return;
+    this.resizeSignatureCanvas(canvas);
+    this.signaturePad = new SignaturePad(canvas, {
+      backgroundColor: 'rgb(255,255,255)',
+      penColor: 'rgb(0,0,0)',
+    });
+    window.addEventListener('resize', () => this.resizeSignatureCanvas(canvas));
+  },
+
+  resizeSignatureCanvas(canvas) {
+    const wrapper = canvas.parentElement;
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width = wrapper.offsetWidth * ratio;
+    canvas.height = wrapper.offsetHeight * ratio;
+    canvas.getContext('2d').scale(ratio, ratio);
+    if (this.signaturePad) this.signaturePad.clear();
+  },
+
+  clearSignature() {
+    if (this.signaturePad) this.signaturePad.clear();
   },
 
   editVisit(id) {
@@ -141,6 +186,8 @@ const App = {
     document.getElementById('visitSubmitBtn').innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-check-lg me-1"></i>Guardar Cambios';
     const extras = document.getElementById('visitFormExtras');
     if (extras) extras.classList.add('d-none');
+    const sigBlock = document.getElementById('signatureBlock');
+    if (sigBlock) sigBlock.classList.add('d-none');
     this.loadVisitForEdit(id);
     this.loadDestinations();
   },
@@ -173,6 +220,9 @@ const App = {
     const printChk = document.getElementById('visitPrintAfterSave');
     if (printChk) printChk.checked = true;
     document.getElementById('visitFormError').classList.add('d-none');
+    const sigBlock = document.getElementById('signatureBlock');
+    if (sigBlock) sigBlock.classList.remove('d-none');
+    this.clearSignature();
   },
 
   setVisitFormError(message, type = 'danger') {
@@ -213,6 +263,14 @@ const App = {
     if (!data.visitor_name || !data.visitor_document || !data.destination || !data.purpose) {
       this.setVisitFormError('Completa todos los campos obligatorios', 'danger');
       return;
+    }
+
+    if (!this.editingVisitId && this.signaturePad) {
+      if (this.signaturePad.isEmpty()) {
+        this.setVisitFormError('La firma del visitante es obligatoria', 'danger');
+        return;
+      }
+      data.signature = this.signaturePad.toDataURL('image/png');
     }
 
     btn.disabled = true;
@@ -481,6 +539,21 @@ const App = {
     this.loadVisits();
   },
 
+  async exportPDF() {
+    try {
+      const params = {
+        search: document.getElementById('searchInput')?.value || '',
+        status: document.getElementById('filterStatus')?.value || '',
+        date_from: document.getElementById('filterDateFrom')?.value || '',
+        date_to: document.getElementById('filterDateTo')?.value || '',
+      };
+      await API.exportPDF(params);
+      this.toast('PDF descargado', 'success');
+    } catch (err) {
+      this.toast('Error al exportar PDF', 'danger');
+    }
+  },
+
   async exportCSV() {
     try {
       const params = {
@@ -525,6 +598,7 @@ const App = {
           <div class="detail-item"><label>Fecha de creación</label><span>${this.formatDateTime(v.created_at)}</span></div>
         </div>
         ${v.notes ? `<div class="mt-3"><label class="form-label small fw-semibold text-muted">NOTAS</label><p>${this.esc(v.notes)}</p></div>` : ''}
+        ${v.signature ? `<div class="mt-3"><label class="form-label small fw-semibold text-muted">FIRMA DEL VISITANTE</label><div class="border rounded p-2 bg-white text-center"><img src="${v.signature}" alt="Firma" style="max-height:120px;"></div></div>` : ''}
         <div class="text-center mt-3">
           <p class="text-muted small mb-2">Código QR de la visita</p>
           <img src="${qrData.qr_image}" alt="QR Code" style="max-width: 180px;">
@@ -535,6 +609,9 @@ const App = {
       let footerHtml = `
         <button class="btn btn-success" onclick="App.showCredentialAndPrint(${v.id})">
           <i class="bi bi-printer me-1"></i>Imprimir Credencial
+        </button>
+        <button class="btn btn-danger" onclick="App.downloadVisitPDF(${v.id})">
+          <i class="bi bi-filetype-pdf me-1"></i>PDF
         </button>`;
 
       if (v.status === 'checked_in') {
@@ -550,6 +627,15 @@ const App = {
       new bootstrap.Modal(document.getElementById('visitDetailModal')).show();
     } catch (err) {
       this.toast('Error al cargar detalle de la visita', 'danger');
+    }
+  },
+
+  async downloadVisitPDF(id) {
+    try {
+      await API.exportVisitPDF(id);
+      this.toast('PDF de visita descargado', 'success');
+    } catch (err) {
+      this.toast('Error al exportar PDF de visita', 'danger');
     }
   },
 
@@ -606,6 +692,7 @@ const App = {
             <div class="credential-row"><span class="label">Fecha:</span><span class="value">${checkInDate.toLocaleDateString('es-ES')}</span></div>
             <div class="credential-row"><span class="label">Hora:</span><span class="value">${checkInDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span></div>
           </div>
+          ${v.signature ? `<div class="credential-signature" style="text-align:center;padding:6px 0;border-top:1px dotted #ccc;"><p style="margin:0 0 2px;font-size:10px;color:#666;">Firma:</p><img src="${v.signature}" alt="Firma" style="max-height:60px;max-width:80%;"></div>` : ''}
           <div class="credential-qr">
             <img src="${data.qr_image}" alt="QR">
             <p style="margin: 4px 0 0; font-size: 10px; color: #666;">${v.qr_code}</p>
@@ -647,6 +734,232 @@ const App = {
 
     } catch (err) {
       this.toast('Error al generar credencial', 'danger');
+    }
+  },
+
+  // ===== NOTIFICATIONS =====
+  startNotifPolling() {
+    this.stopNotifPolling();
+    this.pollUnreadCount();
+    this.notifInterval = setInterval(() => this.pollUnreadCount(), 30000);
+  },
+
+  stopNotifPolling() {
+    if (this.notifInterval) {
+      clearInterval(this.notifInterval);
+      this.notifInterval = null;
+    }
+  },
+
+  async pollUnreadCount() {
+    try {
+      const data = await API.getUnreadCount();
+      const badge = document.getElementById('notifBadge');
+      if (data.count > 0) {
+        badge.textContent = data.count > 99 ? '99+' : data.count;
+        badge.classList.remove('d-none');
+      } else {
+        badge.classList.add('d-none');
+      }
+    } catch (_) { /* silently ignore */ }
+  },
+
+  async loadNotifications() {
+    const list = document.getElementById('notifList');
+    try {
+      const data = await API.getNotifications({ limit: 20 });
+      if (!data.notifications.length) {
+        list.innerHTML = '<div class="text-center py-3 text-muted small">Sin notificaciones</div>';
+        return;
+      }
+      list.innerHTML = data.notifications.map((n) => {
+        const icons = { info: 'info-circle text-primary', warning: 'exclamation-triangle text-warning', success: 'check-circle text-success' };
+        const iconCls = icons[n.type] || icons.info;
+        const bg = n.read ? '' : 'bg-light';
+        const time = this.formatDateTime(n.createdAt);
+        return `
+          <div class="dropdown-item d-flex align-items-start gap-2 px-3 py-2 ${bg} border-bottom" style="white-space:normal;cursor:pointer;" onclick="App.markNotifRead(${n.id}, this)">
+            <i class="bi bi-${iconCls} mt-1"></i>
+            <div class="flex-grow-1">
+              <div class="fw-semibold small">${this.esc(n.title)}</div>
+              <div class="text-muted small">${this.esc(n.message)}</div>
+              <div class="text-muted" style="font-size:0.7rem;">${time}</div>
+            </div>
+            ${!n.read ? '<span class="badge bg-primary rounded-pill" style="font-size:0.6rem;">Nuevo</span>' : ''}
+          </div>`;
+      }).join('');
+    } catch (_) {
+      list.innerHTML = '<div class="text-center py-3 text-danger small">Error al cargar</div>';
+    }
+  },
+
+  async markNotifRead(id, el) {
+    try {
+      await API.markNotifRead(id);
+      if (el) {
+        el.classList.remove('bg-light');
+        const badge = el.querySelector('.badge');
+        if (badge) badge.remove();
+      }
+      this.pollUnreadCount();
+    } catch (_) { /* ignore */ }
+  },
+
+  async handleMarkAllRead() {
+    try {
+      await API.markAllNotifsRead();
+      this.pollUnreadCount();
+      this.loadNotifications();
+      this.toast('Notificaciones marcadas como leídas', 'success');
+    } catch (_) {
+      this.toast('Error al marcar notificaciones', 'danger');
+    }
+  },
+
+  // ===== USERS CRUD =====
+  async loadUsers() {
+    const tbody = document.getElementById('usersTable');
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    try {
+      const data = await API.getUsers();
+      this.renderUsersTable(data.users);
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar usuarios</td></tr>';
+    }
+  },
+
+  renderUsersTable(users) {
+    const tbody = document.getElementById('usersTable');
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay usuarios</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map((u) => `
+      <tr class="${!u.active ? 'table-secondary' : ''}">
+        <td><small class="text-muted">#${u.id}</small></td>
+        <td><strong>${this.esc(u.username)}</strong></td>
+        <td>${this.esc(u.full_name)}</td>
+        <td><span class="badge ${u.role === 'admin' ? 'bg-primary' : 'bg-secondary'}">${u.role === 'admin' ? 'Admin' : 'Usuario'}</span></td>
+        <td><span class="badge ${u.active ? 'bg-success' : 'bg-danger'}">${u.active ? 'Activo' : 'Inactivo'}</span></td>
+        <td class="d-none d-md-table-cell"><small>${this.formatDateTime(u.createdAt)}</small></td>
+        <td>
+          <div class="d-flex gap-1 flex-wrap">
+            <button class="btn btn-outline-primary btn-action" title="Editar" onclick="App.showUserForm(${u.id})"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-outline-warning btn-action" title="Cambiar contraseña" onclick="App.showChangePassword(${u.id})"><i class="bi bi-key"></i></button>
+            ${u.active ? `<button class="btn btn-outline-danger btn-action" title="Desactivar" onclick="App.deactivateUser(${u.id}, '${this.esc(u.username)}')"><i class="bi bi-person-slash"></i></button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  },
+
+  showUserForm(userId) {
+    const modal = new bootstrap.Modal(document.getElementById('userFormModal'));
+    const title = document.getElementById('userFormTitle');
+    const usernameInput = document.getElementById('ufUsername');
+    const pwGroup = document.getElementById('ufPasswordGroup');
+    const activeGroup = document.getElementById('ufActiveGroup');
+    const errorDiv = document.getElementById('userFormError');
+
+    document.getElementById('userForm').reset();
+    document.getElementById('userFormId').value = '';
+    errorDiv.classList.add('d-none');
+
+    if (userId) {
+      title.innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Usuario';
+      usernameInput.disabled = true;
+      pwGroup.classList.add('d-none');
+      activeGroup.classList.remove('d-none');
+      API.getUser(userId).then((data) => {
+        const u = data.user;
+        document.getElementById('userFormId').value = u.id;
+        usernameInput.value = u.username;
+        document.getElementById('ufFullName').value = u.full_name;
+        document.getElementById('ufRole').value = u.role;
+        document.getElementById('ufActive').value = String(u.active);
+      }).catch(() => this.toast('Error al cargar usuario', 'danger'));
+    } else {
+      title.innerHTML = '<i class="bi bi-person-plus me-2"></i>Nuevo Usuario';
+      usernameInput.disabled = false;
+      pwGroup.classList.remove('d-none');
+      activeGroup.classList.add('d-none');
+    }
+    modal.show();
+  },
+
+  async handleUserSave() {
+    const id = document.getElementById('userFormId').value;
+    const errorDiv = document.getElementById('userFormError');
+    errorDiv.classList.add('d-none');
+
+    try {
+      if (id) {
+        await API.updateUser(id, {
+          full_name: document.getElementById('ufFullName').value.trim(),
+          role: document.getElementById('ufRole').value,
+          active: document.getElementById('ufActive').value === 'true',
+        });
+        this.toast('Usuario actualizado', 'success');
+      } else {
+        const password = document.getElementById('ufPassword').value;
+        if (!password || password.length < 8) {
+          errorDiv.textContent = 'La contraseña debe tener al menos 8 caracteres';
+          errorDiv.classList.remove('d-none');
+          return;
+        }
+        await API.createUser({
+          username: document.getElementById('ufUsername').value.trim(),
+          password,
+          full_name: document.getElementById('ufFullName').value.trim(),
+          role: document.getElementById('ufRole').value,
+        });
+        this.toast('Usuario creado', 'success');
+      }
+      bootstrap.Modal.getInstance(document.getElementById('userFormModal')).hide();
+      this.loadUsers();
+    } catch (err) {
+      errorDiv.textContent = err.error || 'Error al guardar usuario';
+      errorDiv.classList.remove('d-none');
+    }
+  },
+
+  showChangePassword(userId) {
+    document.getElementById('cpUserId').value = userId;
+    document.getElementById('cpPassword').value = '';
+    document.getElementById('cpError').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('changePasswordModal')).show();
+  },
+
+  async handleChangePassword() {
+    const id = document.getElementById('cpUserId').value;
+    const password = document.getElementById('cpPassword').value;
+    const errorDiv = document.getElementById('cpError');
+    errorDiv.classList.add('d-none');
+
+    if (!password || password.length < 8) {
+      errorDiv.textContent = 'La contraseña debe tener al menos 8 caracteres';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+
+    try {
+      await API.changeUserPassword(id, password);
+      this.toast('Contraseña actualizada', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+    } catch (err) {
+      errorDiv.textContent = err.error || 'Error al cambiar contraseña';
+      errorDiv.classList.remove('d-none');
+    }
+  },
+
+  async deactivateUser(id, username) {
+    if (!confirm(`¿Desactivar al usuario "${username}"?`)) return;
+    try {
+      await API.deleteUser(id);
+      this.toast('Usuario desactivado', 'success');
+      this.loadUsers();
+    } catch (err) {
+      this.toast(err.error || 'Error al desactivar usuario', 'danger');
     }
   },
 

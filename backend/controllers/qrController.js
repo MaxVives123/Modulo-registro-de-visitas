@@ -129,6 +129,7 @@ async function getCredentialData(req, res, next) {
         check_in: visit.check_in,
         status: visit.status,
         qr_code: visit.qr_code,
+        signature: visit.signature,
       },
       qr_image: qrDataUrl,
       qr_url: qrUrl,

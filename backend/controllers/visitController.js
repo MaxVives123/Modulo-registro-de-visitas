@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 const { Visit, User } = require('../models');
 const logger = require('../utils/logger');
+const { notifyAdmins, notifyUser } = require('./notificationController');
 
 async function list(req, res, next) {
   try {
@@ -99,6 +100,7 @@ async function create(req, res, next) {
       destination: req.body.destination,
       purpose: req.body.purpose,
       notes: nullIfEmpty(req.body.notes),
+      signature: nullIfEmpty(req.body.signature),
       qr_code: qrCode,
       status: 'checked_in',
       check_in: new Date(),
@@ -110,6 +112,13 @@ async function create(req, res, next) {
     });
 
     logger.info(`Visita creada: ${visit.id} - ${visit.visitor_name}`);
+
+    notifyAdmins(
+      'Nueva visita',
+      `${visit.visitor_name} → ${visit.destination}`,
+      'info',
+    );
+
     res.status(201).json({ visit: fullVisit });
   } catch (error) {
     next(error);
@@ -126,7 +135,7 @@ async function update(req, res, next) {
 
     const allowedFields = [
       'visitor_name', 'visitor_document', 'visitor_company',
-      'visitor_email', 'visitor_phone', 'destination', 'purpose', 'notes',
+      'visitor_email', 'visitor_phone', 'destination', 'purpose', 'notes', 'signature',
     ];
 
     const updates = {};
@@ -199,6 +208,14 @@ async function checkOut(req, res, next) {
 
     await visit.update({ status: 'checked_out', check_out: new Date() });
     logger.info(`Check-out: visita ${visit.id}`);
+
+    notifyUser(
+      visit.created_by,
+      'Salida registrada',
+      `${visit.visitor_name} ha salido de las instalaciones`,
+      'success',
+    );
+
     res.json({ visit });
   } catch (error) {
     next(error);

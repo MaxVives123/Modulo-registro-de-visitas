@@ -16,6 +16,8 @@ const authRoutes = require('./routes/auth');
 const visitRoutes = require('./routes/visits');
 const dashboardRoutes = require('./routes/dashboard');
 const qrRoutes = require('./routes/qr');
+const userRoutes = require('./routes/users');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -39,7 +41,7 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(morgan('combined', {
@@ -69,6 +71,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
