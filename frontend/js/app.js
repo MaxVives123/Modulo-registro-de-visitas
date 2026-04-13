@@ -233,6 +233,14 @@ const App = {
     errorDiv.classList.remove('d-none');
   },
 
+  /** Mensajes concretos cuando el backend devuelve { error, details: [{ message }] } */
+  formatApiValidationError(err, fallback = 'Error') {
+    if (err?.details?.length) {
+      return err.details.map((d) => d.message).join(' ');
+    }
+    return err?.error || fallback;
+  },
+
   formatVisitSubmitError(err) {
     if (err?.details?.length) {
       return err.details
@@ -914,7 +922,7 @@ const App = {
       bootstrap.Modal.getInstance(document.getElementById('userFormModal')).hide();
       this.loadUsers();
     } catch (err) {
-      errorDiv.textContent = err.error || 'Error al guardar usuario';
+      errorDiv.textContent = this.formatApiValidationError(err, 'Error al guardar usuario');
       errorDiv.classList.remove('d-none');
     }
   },
@@ -943,7 +951,7 @@ const App = {
       this.toast('Contraseña actualizada', 'success');
       bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
     } catch (err) {
-      errorDiv.textContent = err.error || 'Error al cambiar contraseña';
+      errorDiv.textContent = this.formatApiValidationError(err, 'Error al cambiar contraseña');
       errorDiv.classList.remove('d-none');
     }
   },

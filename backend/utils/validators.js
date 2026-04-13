@@ -121,7 +121,7 @@ const userValidation = {
       .trim()
       .notEmpty().withMessage('El nombre de usuario es obligatorio')
       .isLength({ min: 3, max: 50 }).withMessage('El usuario debe tener entre 3 y 50 caracteres')
-      .matches(/^[a-zA-Z0-9._-]+$/).withMessage('Solo letras, números, puntos, guiones y guiones bajos'),
+      .matches(/^[\p{L}\p{N}._-]+$/u).withMessage('Solo letras (sin espacios), números, puntos, guiones y guiones bajos'),
     body('password')
       .notEmpty().withMessage('La contraseña es obligatoria')
       .isLength({ min: 8, max: 100 }).withMessage('La contraseña debe tener al menos 8 caracteres'),
@@ -131,7 +131,7 @@ const userValidation = {
       .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres')
       .escape(),
     body('role')
-      .optional()
+      .optional({ checkFalsy: true })
       .isIn(['admin', 'user']).withMessage('Rol inválido'),
   ],
   update: [
