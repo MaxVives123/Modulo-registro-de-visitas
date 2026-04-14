@@ -179,10 +179,6 @@ async function startServer() {
     logger.info('Modelos sincronizados con la base de datos');
 
     await runPostAlters(isPg);
-
-    // Seed: crear superadmin si no existe
-    const { ensureAdmin } = require('./seeds/ensure-admin');
-    await ensureAdmin();
   } catch (error) {
     logger.error('Error al inicializar la base de datos:', error);
     process.exit(1);

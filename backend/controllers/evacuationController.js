@@ -1,4 +1,3 @@
-const ExcelJS = require('exceljs');
 const { EvacuationEvent, EvacuationNotification, Visit, User, Company } = require('../models');
 const messagingService = require('../utils/messagingService');
 const logger = require('../utils/logger');

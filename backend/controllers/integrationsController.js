@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { User, Visit, EvacuationEvent, EvacuationNotification } = require('../models');
 const messagingService = require('../utils/messagingService');
 const { sendGenericEmail } = require('../utils/emailService');
@@ -52,7 +53,6 @@ async function accessEvent(req, res, next) {
       return res.status(400).json({ error: 'event_type debe ser badge_in o badge_out' });
     }
 
-    const { Op } = require('sequelize');
     const user = await User.findOne({
       where: {
         [Op.or]: [

@@ -1,6 +1,6 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { validationMiddleware } = require('../middleware/validation');
+const { validationMiddleware } = require('../middleware/errorHandler');
 const { evacuationValidation } = require('../utils/validators');
 const {
   trigger, closeEvent, getActive, getRollcall, presentNow, getHistory,
