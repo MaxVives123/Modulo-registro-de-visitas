@@ -118,6 +118,18 @@ const API = {
   markNotifRead(id) { return this.put(`/notifications/${id}/read`); },
   markAllNotifsRead() { return this.put('/notifications/read-all'); },
 
+  // Companies
+  getCompanies(params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') query.set(k, v); });
+    const qs = query.toString();
+    return this.get(`/companies${qs ? '?' + qs : ''}`);
+  },
+  getCompany(id) { return this.get(`/companies/${id}`); },
+  createCompany(data) { return this.post('/companies', data); },
+  updateCompany(id, data) { return this.put(`/companies/${id}`, data); },
+  deleteCompany(id) { return this.delete(`/companies/${id}`); },
+
   // QR
   generateQR(id) { return this.get(`/qr/generate/${id}`); },
   getCredential(id) { return this.get(`/qr/credential/${id}`); },

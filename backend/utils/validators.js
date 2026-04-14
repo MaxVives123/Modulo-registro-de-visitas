@@ -45,6 +45,19 @@ const visitValidation = {
     body('signature')
       .optional({ checkFalsy: true })
       .isString().withMessage('La firma debe ser una cadena de texto'),
+    body('host_name')
+      .optional({ checkFalsy: true })
+      .trim()
+      .isLength({ max: 100 }).withMessage('El nombre del anfitrión no puede exceder 100 caracteres')
+      .escape(),
+    body('host_email')
+      .optional({ checkFalsy: true })
+      .trim()
+      .isEmail().withMessage('Email del anfitrión inválido')
+      .normalizeEmail(),
+    body('company_id')
+      .optional({ checkFalsy: true })
+      .isInt({ min: 1 }).withMessage('ID de empresa inválido'),
   ],
   update: [
     param('id').isInt({ min: 1 }).withMessage('ID inválido'),
@@ -91,6 +104,19 @@ const visitValidation = {
     body('signature')
       .optional({ checkFalsy: true })
       .isString().withMessage('La firma debe ser una cadena de texto'),
+    body('host_name')
+      .optional({ checkFalsy: true })
+      .trim()
+      .isLength({ max: 100 })
+      .escape(),
+    body('host_email')
+      .optional({ checkFalsy: true })
+      .trim()
+      .isEmail().withMessage('Email del anfitrión inválido')
+      .normalizeEmail(),
+    body('company_id')
+      .optional({ checkFalsy: true })
+      .isInt({ min: 1 }).withMessage('ID de empresa inválido'),
   ],
   list: [
     query('page').optional().isInt({ min: 1 }).withMessage('Página inválida'),

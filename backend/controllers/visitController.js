@@ -1,10 +1,13 @@
 const { Op } = require('sequelize');
 const ExcelJS = require('exceljs');
 const { v4: uuidv4 } = require('uuid');
-const { Visit, User } = require('../models');
+const { Visit, User, Company } = require('../models');
 const logger = require('../utils/logger');
 const { buildVisitExportWhere } = require('../utils/visitExportWhere');
 const { notifyAdmins, notifyUser } = require('./notificationController');
+const { sendVisitNotification } = require('../utils/emailService');
+
+const COMPANY_INCLUDE = { model: Company, as: 'company', attributes: ['id', 'name'] };
 
 async function list(req, res, next) {
   try {
@@ -45,9 +48,16 @@ async function list(req, res, next) {
       where.destination = req.query.destination;
     }
 
+    if (req.query.company_id) {
+      where.company_id = parseInt(req.query.company_id, 10);
+    }
+
     const { rows: visits, count: total } = await Visit.findAndCountAll({
       where,
-      include: [{ model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] }],
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
+        COMPANY_INCLUDE,
+      ],
       order: [['created_at', 'DESC']],
       limit,
       offset,
@@ -70,7 +80,10 @@ async function list(req, res, next) {
 async function getById(req, res, next) {
   try {
     const visit = await Visit.findByPk(req.params.id, {
-      include: [{ model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] }],
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
+        COMPANY_INCLUDE,
+      ],
     });
 
     if (!visit) {
@@ -103,6 +116,9 @@ async function create(req, res, next) {
       purpose: req.body.purpose,
       notes: nullIfEmpty(req.body.notes),
       signature: nullIfEmpty(req.body.signature),
+      host_name: nullIfEmpty(req.body.host_name),
+      host_email: nullIfEmpty(req.body.host_email),
+      company_id: req.body.company_id ? parseInt(req.body.company_id, 10) : null,
       qr_code: qrCode,
       status: 'checked_in',
       check_in: new Date(),
@@ -110,8 +126,13 @@ async function create(req, res, next) {
     });
 
     const fullVisit = await Visit.findByPk(visit.id, {
-      include: [{ model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] }],
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
+        COMPANY_INCLUDE,
+      ],
     });
+
+    sendVisitNotification(visit).catch(() => {});
 
     logger.info(`Visita creada: ${visit.id} - ${visit.visitor_name}`);
 
@@ -138,6 +159,7 @@ async function update(req, res, next) {
     const allowedFields = [
       'visitor_name', 'visitor_document', 'visitor_company',
       'visitor_email', 'visitor_phone', 'destination', 'purpose', 'notes', 'signature',
+      'host_name', 'host_email', 'company_id',
     ];
 
     const updates = {};
@@ -150,7 +172,10 @@ async function update(req, res, next) {
     await visit.update(updates);
 
     const fullVisit = await Visit.findByPk(visit.id, {
-      include: [{ model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] }],
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
+        COMPANY_INCLUDE,
+      ],
     });
 
     logger.info(`Visita actualizada: ${visit.id}`);
@@ -243,15 +268,19 @@ async function exportCSV(req, res, next) {
 
     const visits = await Visit.findAll({
       where,
-      include: [{ model: User, as: 'creator', attributes: ['full_name'] }],
+      include: [
+        { model: User, as: 'creator', attributes: ['full_name'] },
+        { model: Company, as: 'company', attributes: ['name'] },
+      ],
       order: [['created_at', 'DESC']],
       raw: true,
       nest: true,
     });
 
     const headers = [
-      'ID', 'Visitante', 'Documento', 'Empresa', 'Email', 'Teléfono',
-      'Destino', 'Motivo', 'Estado', 'Entrada', 'Salida', 'Registrado por', 'Fecha creación',
+      'ID', 'Visitante', 'Documento', 'Empresa visitante', 'Email', 'Teléfono',
+      'Destino', 'Persona visitada', 'Email visitado', 'Motivo', 'Empresa destino',
+      'Estado', 'Entrada', 'Salida', 'Registrado por', 'Fecha creación',
     ];
 
     const statusLabels = {
@@ -269,7 +298,10 @@ async function exportCSV(req, res, next) {
       v.visitor_email || '',
       v.visitor_phone || '',
       `"${v.destination}"`,
+      `"${v.host_name || ''}"`,
+      v.host_email || '',
       `"${v.purpose}"`,
+      `"${v.company?.name || ''}"`,
       statusLabels[v.status] || v.status,
       v.check_in ? new Date(v.check_in).toLocaleString('es-ES') : '',
       v.check_out ? new Date(v.check_out).toLocaleString('es-ES') : '',
@@ -299,7 +331,10 @@ async function exportExcel(req, res, next) {
     const where = buildVisitExportWhere(req.query);
     const visits = await Visit.findAll({
       where,
-      include: [{ model: User, as: 'creator', attributes: ['full_name'] }],
+      include: [
+        { model: User, as: 'creator', attributes: ['full_name'] },
+        { model: Company, as: 'company', attributes: ['name'] },
+      ],
       order: [['created_at', 'DESC']],
       raw: true,
       nest: true,
@@ -312,8 +347,9 @@ async function exportExcel(req, res, next) {
     });
 
     const headers = [
-      'ID', 'Visitante', 'Documento', 'Empresa', 'Email', 'Teléfono',
-      'Destino', 'Motivo', 'Estado', 'Entrada', 'Salida', 'Registrado por', 'Fecha creación',
+      'ID', 'Visitante', 'Documento', 'Empresa visitante', 'Email', 'Teléfono',
+      'Destino', 'Persona visitada', 'Email visitado', 'Motivo', 'Empresa destino',
+      'Estado', 'Entrada', 'Salida', 'Registrado por', 'Fecha creación',
     ];
     sheet.addRow(headers);
     const headerRow = sheet.getRow(1);
@@ -334,7 +370,10 @@ async function exportExcel(req, res, next) {
         v.visitor_email || '',
         v.visitor_phone || '',
         v.destination,
+        v.host_name || '',
+        v.host_email || '',
         v.purpose,
+        v.company?.name || '',
         STATUS_LABELS_EXPORT[v.status] || v.status,
         v.check_in ? new Date(v.check_in).toLocaleString('es-ES') : '',
         v.check_out ? new Date(v.check_out).toLocaleString('es-ES') : '',
@@ -343,7 +382,7 @@ async function exportExcel(req, res, next) {
       ]);
     });
 
-    const widths = [8, 28, 16, 22, 24, 14, 22, 32, 18, 20, 20, 22, 20];
+    const widths = [8, 28, 16, 22, 24, 14, 22, 24, 24, 32, 22, 18, 20, 20, 22, 20];
     sheet.columns.forEach((col, i) => {
       col.width = widths[i] || 16;
     });

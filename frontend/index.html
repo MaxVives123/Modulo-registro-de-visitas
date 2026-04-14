@@ -6,7 +6,7 @@
   <title>Sistema de Registro de Visitas</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="css/styles.css?v=16" rel="stylesheet">
+  <link href="css/styles.css?v=17" rel="stylesheet">
 </head>
 <body>
   <!-- Login Screen -->
@@ -46,7 +46,7 @@
     <!-- Sidebar -->
     <nav id="sidebar" class="sidebar">
       <div class="sidebar-header">
-        <img src="img/logo.png?v=16" alt="TAM-RH Visitas" class="sidebar-logo">
+        <img src="img/logo.png?v=17" alt="TAM-RH Visitas" class="sidebar-logo">
       </div>
       <ul class="sidebar-nav">
         <li>
@@ -67,6 +67,11 @@
         <li id="sidebarUsersItem" class="d-none">
           <a href="#" class="sidebar-link" data-page="users">
             <i class="bi bi-people-fill"></i><span>Usuarios</span>
+          </a>
+        </li>
+        <li id="sidebarCompaniesItem" class="d-none">
+          <a href="#" class="sidebar-link" data-page="companies">
+            <i class="bi bi-building"></i><span>Empresas</span>
           </a>
         </li>
       </ul>
@@ -311,11 +316,17 @@
                     <input type="text" class="form-control" id="vDocument" required maxlength="30">
                   </div>
                   <div class="col-md-6">
-                    <label for="vCompany" class="form-label">Empresa</label>
-                    <input type="text" class="form-control" id="vCompany" maxlength="100">
+                    <label for="vCompanyId" class="form-label">Empresa <small class="text-muted">(registrada en el sistema)</small></label>
+                    <select class="form-select" id="vCompanyId">
+                      <option value="">— Sin empresa / Particular —</option>
+                    </select>
                   </div>
                   <div class="col-md-6">
-                    <label for="vEmail" class="form-label">Email</label>
+                    <label for="vCompany" class="form-label">Empresa del visitante <small class="text-muted">(texto libre)</small></label>
+                    <input type="text" class="form-control" id="vCompany" maxlength="100" placeholder="Empresa de la que viene el visitante">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="vEmail" class="form-label">Email del visitante</label>
                     <input type="email" class="form-control" id="vEmail">
                   </div>
                   <div class="col-md-6">
@@ -326,6 +337,14 @@
                     <label for="vDestination" class="form-label">Destino / Departamento <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="vDestination" required maxlength="100" list="destinationsList">
                     <datalist id="destinationsList"></datalist>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="vHostName" class="form-label">Nombre de la persona a visitar</label>
+                    <input type="text" class="form-control" id="vHostName" maxlength="100" placeholder="Nombre del empleado/persona visitada">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="vHostEmail" class="form-label">Email de la persona a visitar <small class="text-muted">(recibirá notificación)</small></label>
+                    <input type="email" class="form-control" id="vHostEmail" placeholder="correo@empresa.com">
                   </div>
                   <div class="col-md-6">
                     <label for="vPurpose" class="form-label">Motivo de la Visita <span class="text-danger">*</span></label>
@@ -366,6 +385,38 @@
             </div>
           </div>
         </div>
+        <!-- Companies Page (admin only) -->
+        <div id="pageCompanies" class="page-content d-none">
+          <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <h6 class="mb-0"><i class="bi bi-building me-2"></i>Gestión de Empresas</h6>
+              <button class="btn btn-primary btn-sm" id="btnNewCompany">
+                <i class="bi bi-plus-lg me-1"></i>Nueva Empresa
+              </button>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>ID</th>
+                      <th>Nombre</th>
+                      <th class="d-none d-md-table-cell">RIF</th>
+                      <th class="d-none d-lg-table-cell">Email</th>
+                      <th class="d-none d-lg-table-cell">Teléfono</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="companiesTable">
+                    <tr><td colspan="7" class="text-center py-4">Cargando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Users Page (admin only) -->
         <div id="pageUsers" class="page-content d-none">
           <div class="card shadow-sm">
@@ -477,6 +528,57 @@
     </div>
   </div>
 
+  <!-- Company Form Modal -->
+  <div class="modal fade" id="companyFormModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="companyFormTitle"><i class="bi bi-building me-2"></i>Nueva Empresa</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="companyForm" novalidate>
+            <input type="hidden" id="companyFormId">
+            <div class="mb-3">
+              <label for="cfName" class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="cfName" required maxlength="150">
+            </div>
+            <div class="mb-3">
+              <label for="cfRif" class="form-label">RIF / NIF</label>
+              <input type="text" class="form-control" id="cfRif" maxlength="30">
+            </div>
+            <div class="mb-3">
+              <label for="cfEmail" class="form-label">Email</label>
+              <input type="email" class="form-control" id="cfEmail">
+            </div>
+            <div class="mb-3">
+              <label for="cfPhone" class="form-label">Teléfono</label>
+              <input type="text" class="form-control" id="cfPhone" maxlength="20">
+            </div>
+            <div class="mb-3">
+              <label for="cfAddress" class="form-label">Dirección</label>
+              <input type="text" class="form-control" id="cfAddress" maxlength="255">
+            </div>
+            <div class="mb-3 d-none" id="cfActiveGroup">
+              <label class="form-label">Estado</label>
+              <select class="form-select" id="cfActive">
+                <option value="true">Activa</option>
+                <option value="false">Inactiva</option>
+              </select>
+            </div>
+            <div id="companyFormError" class="alert alert-danger d-none"></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="companyFormSaveBtn">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Visit Detail Modal -->
   <div class="modal fade" id="visitDetailModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -525,7 +627,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
-  <script src="js/api.js?v=16"></script>
-  <script src="js/app.js?v=16"></script>
+  <script src="js/api.js?v=17"></script>
+  <script src="js/app.js?v=17"></script>
 </body>
 </html>

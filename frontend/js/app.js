@@ -3,8 +3,10 @@ const App = {
   charts: {},
   visitListParams: { page: 1, limit: 15 },
   editingVisitId: null,
+  editingCompanyId: null,
   signaturePad: null,
   notifInterval: null,
+  _companiesCache: [],
 
   init() {
     if (API.token && localStorage.getItem('user')) {
@@ -27,6 +29,8 @@ const App = {
     document.getElementById('btnNewUser')?.addEventListener('click', () => this.showUserForm());
     document.getElementById('userFormSaveBtn')?.addEventListener('click', () => this.handleUserSave());
     document.getElementById('cpSaveBtn')?.addEventListener('click', () => this.handleChangePassword());
+    document.getElementById('btnNewCompany')?.addEventListener('click', () => this.showCompanyForm());
+    document.getElementById('companyFormSaveBtn')?.addEventListener('click', () => this.handleCompanySave());
     this.initSignaturePad();
 
     document.querySelectorAll('.sidebar-link').forEach((link) => {
@@ -68,6 +72,10 @@ const App = {
     const usersItem = document.getElementById('sidebarUsersItem');
     if (usersItem) {
       usersItem.classList.toggle('d-none', user.role !== 'admin');
+    }
+    const companiesItem = document.getElementById('sidebarCompaniesItem');
+    if (companiesItem) {
+      companiesItem.classList.toggle('d-none', user.role !== 'admin');
     }
     this.startNotifPolling();
   },
@@ -125,6 +133,7 @@ const App = {
       visits: 'Lista de Visitas',
       'new-visit': 'Nueva Visita',
       users: 'Gestión de Usuarios',
+      companies: 'Gestión de Empresas',
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
 
@@ -145,10 +154,15 @@ const App = {
         this.editingVisitId = null;
         this.resetVisitForm();
         this.loadDestinations();
+        this.loadCompaniesForSelect();
         break;
       case 'users':
         document.getElementById('pageUsers').classList.remove('d-none');
         this.loadUsers();
+        break;
+      case 'companies':
+        document.getElementById('pageCompanies').classList.remove('d-none');
+        this.loadCompanies();
         break;
     }
   },
@@ -194,6 +208,7 @@ const App = {
 
   async loadVisitForEdit(id) {
     try {
+      await this.loadCompaniesForSelect();
       const data = await API.getVisit(id);
       const v = data.visit;
       document.getElementById('visitId').value = v.id;
@@ -203,6 +218,9 @@ const App = {
       document.getElementById('vEmail').value = v.visitor_email || '';
       document.getElementById('vPhone').value = v.visitor_phone || '';
       document.getElementById('vDestination').value = v.destination || '';
+      document.getElementById('vHostName').value = v.host_name || '';
+      document.getElementById('vHostEmail').value = v.host_email || '';
+      document.getElementById('vCompanyId').value = v.company_id || '';
       document.getElementById('vPurpose').value = v.purpose || '';
       document.getElementById('vNotes').value = v.notes || '';
     } catch (err) {
@@ -213,6 +231,9 @@ const App = {
   resetVisitForm() {
     document.getElementById('visitForm').reset();
     document.getElementById('visitId').value = '';
+    document.getElementById('vCompanyId').value = '';
+    document.getElementById('vHostName').value = '';
+    document.getElementById('vHostEmail').value = '';
     document.getElementById('visitFormTitle').innerHTML = '<i class="bi bi-person-plus me-2"></i>Nueva Visita';
     document.getElementById('visitSubmitBtn').innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-check-lg me-1"></i>Registrar Visita';
     const extras = document.getElementById('visitFormExtras');
@@ -257,6 +278,7 @@ const App = {
     const errorDiv = document.getElementById('visitFormError');
     if (!btn) return;
 
+    const companyIdRaw = document.getElementById('vCompanyId').value;
     const data = {
       visitor_name: document.getElementById('vName').value.trim(),
       visitor_document: document.getElementById('vDocument').value.trim(),
@@ -264,6 +286,9 @@ const App = {
       visitor_email: document.getElementById('vEmail').value.trim(),
       visitor_phone: document.getElementById('vPhone').value.trim(),
       destination: document.getElementById('vDestination').value.trim(),
+      host_name: document.getElementById('vHostName').value.trim(),
+      host_email: document.getElementById('vHostEmail').value.trim(),
+      company_id: companyIdRaw ? parseInt(companyIdRaw, 10) : null,
       purpose: document.getElementById('vPurpose').value.trim(),
       notes: document.getElementById('vNotes').value.trim(),
     };
@@ -588,10 +613,13 @@ const App = {
         <div class="detail-grid">
           <div class="detail-item"><label>Visitante</label><span>${this.esc(v.visitor_name)}</span></div>
           <div class="detail-item"><label>Documento</label><span>${this.esc(v.visitor_document)}</span></div>
-          <div class="detail-item"><label>Empresa</label><span>${this.esc(v.visitor_company || 'N/A')}</span></div>
-          <div class="detail-item"><label>Email</label><span>${this.esc(v.visitor_email || 'N/A')}</span></div>
+          <div class="detail-item"><label>Empresa visitante</label><span>${this.esc(v.visitor_company || 'N/A')}</span></div>
+          <div class="detail-item"><label>Email visitante</label><span>${this.esc(v.visitor_email || 'N/A')}</span></div>
           <div class="detail-item"><label>Teléfono</label><span>${this.esc(v.visitor_phone || 'N/A')}</span></div>
-          <div class="detail-item"><label>Destino</label><span>${this.esc(v.destination)}</span></div>
+          <div class="detail-item"><label>Empresa (sistema)</label><span>${this.esc(v.company?.name || 'N/A')}</span></div>
+          <div class="detail-item"><label>Destino / Dpto.</label><span>${this.esc(v.destination)}</span></div>
+          <div class="detail-item"><label>Persona visitada</label><span>${this.esc(v.host_name || 'N/A')}</span></div>
+          <div class="detail-item"><label>Email persona visitada</label><span>${this.esc(v.host_email || 'N/A')}</span></div>
           <div class="detail-item"><label>Motivo</label><span>${this.esc(v.purpose)}</span></div>
           <div class="detail-item"><label>Estado</label><span>${this.statusBadge(v.status)}</span></div>
           <div class="detail-item"><label>Entrada</label><span>${this.formatDateTime(v.check_in) || 'Sin registro'}</span></div>
@@ -962,6 +990,140 @@ const App = {
       this.loadUsers();
     } catch (err) {
       this.toast(err.error || 'Error al desactivar usuario', 'danger');
+    }
+  },
+
+  // ===== COMPANIES =====
+  async loadCompaniesForSelect() {
+    try {
+      const data = await API.getCompanies({ active: 'true' });
+      this._companiesCache = data.companies || [];
+      const sel = document.getElementById('vCompanyId');
+      if (!sel) return;
+      const currentVal = sel.value;
+      sel.innerHTML = '<option value="">— Sin empresa / Particular —</option>';
+      this._companiesCache.forEach((c) => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+      });
+      if (currentVal) sel.value = currentVal;
+    } catch (_) { /* ignore */ }
+  },
+
+  async loadCompanies() {
+    const tbody = document.getElementById('companiesTable');
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    try {
+      const data = await API.getCompanies();
+      this.renderCompaniesTable(data.companies);
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar empresas</td></tr>';
+    }
+  },
+
+  renderCompaniesTable(companies) {
+    const tbody = document.getElementById('companiesTable');
+    if (!companies.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay empresas registradas</td></tr>';
+      return;
+    }
+    tbody.innerHTML = companies.map((c) => `
+      <tr class="${!c.active ? 'table-secondary' : ''}">
+        <td><small class="text-muted">#${c.id}</small></td>
+        <td><strong>${this.esc(c.name)}</strong></td>
+        <td class="d-none d-md-table-cell">${this.esc(c.rif || '—')}</td>
+        <td class="d-none d-lg-table-cell">${this.esc(c.email || '—')}</td>
+        <td class="d-none d-lg-table-cell">${this.esc(c.phone || '—')}</td>
+        <td><span class="badge ${c.active ? 'bg-success' : 'bg-danger'}">${c.active ? 'Activa' : 'Inactiva'}</span></td>
+        <td>
+          <div class="d-flex gap-1">
+            <button class="btn btn-outline-primary btn-action" title="Editar" onclick="App.showCompanyForm(${c.id})"><i class="bi bi-pencil"></i></button>
+            ${c.active ? `<button class="btn btn-outline-danger btn-action" title="Desactivar" onclick="App.deactivateCompany(${c.id}, '${this.esc(c.name)}')"><i class="bi bi-building-slash"></i></button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  },
+
+  showCompanyForm(companyId) {
+    const modal = new bootstrap.Modal(document.getElementById('companyFormModal'));
+    const title = document.getElementById('companyFormTitle');
+    const activeGroup = document.getElementById('cfActiveGroup');
+    const errorDiv = document.getElementById('companyFormError');
+
+    document.getElementById('companyForm').reset();
+    document.getElementById('companyFormId').value = '';
+    errorDiv.classList.add('d-none');
+
+    if (companyId) {
+      title.innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Empresa';
+      activeGroup.classList.remove('d-none');
+      this.editingCompanyId = companyId;
+      API.getCompany(companyId).then((data) => {
+        const c = data.company;
+        document.getElementById('companyFormId').value = c.id;
+        document.getElementById('cfName').value = c.name;
+        document.getElementById('cfRif').value = c.rif || '';
+        document.getElementById('cfEmail').value = c.email || '';
+        document.getElementById('cfPhone').value = c.phone || '';
+        document.getElementById('cfAddress').value = c.address || '';
+        document.getElementById('cfActive').value = String(c.active);
+      }).catch(() => this.toast('Error al cargar empresa', 'danger'));
+    } else {
+      title.innerHTML = '<i class="bi bi-building me-2"></i>Nueva Empresa';
+      activeGroup.classList.add('d-none');
+      this.editingCompanyId = null;
+    }
+    modal.show();
+  },
+
+  async handleCompanySave() {
+    const id = document.getElementById('companyFormId').value;
+    const errorDiv = document.getElementById('companyFormError');
+    errorDiv.classList.add('d-none');
+
+    const name = document.getElementById('cfName').value.trim();
+    if (!name) {
+      errorDiv.textContent = 'El nombre de la empresa es obligatorio';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+
+    const payload = {
+      name,
+      rif: document.getElementById('cfRif').value.trim(),
+      email: document.getElementById('cfEmail').value.trim(),
+      phone: document.getElementById('cfPhone').value.trim(),
+      address: document.getElementById('cfAddress').value.trim(),
+    };
+
+    try {
+      if (id) {
+        payload.active = document.getElementById('cfActive').value === 'true';
+        await API.updateCompany(id, payload);
+        this.toast('Empresa actualizada', 'success');
+      } else {
+        await API.createCompany(payload);
+        this.toast('Empresa creada', 'success');
+      }
+      bootstrap.Modal.getInstance(document.getElementById('companyFormModal')).hide();
+      this.loadCompanies();
+    } catch (err) {
+      errorDiv.textContent = this.formatApiValidationError(err, 'Error al guardar empresa');
+      errorDiv.classList.remove('d-none');
+    }
+  },
+
+  async deactivateCompany(id, name) {
+    if (!confirm(`¿Desactivar la empresa "${name}"?`)) return;
+    try {
+      await API.deleteCompany(id);
+      this.toast('Empresa desactivada', 'success');
+      this.loadCompanies();
+    } catch (err) {
+      this.toast(err.error || 'Error al desactivar empresa', 'danger');
     }
   },
 

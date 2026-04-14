@@ -18,6 +18,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const qrRoutes = require('./routes/qr');
 const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
+const companyRoutes = require('./routes/companies');
 
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -73,6 +74,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/companies', companyRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -108,6 +110,9 @@ async function startServer() {
     // Tablas creadas antes de añadir el campo: en producción alter:false no añade columnas nuevas.
     if (sequelize.getDialect() === 'postgres') {
       await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS signature TEXT;');
+      await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_name VARCHAR(100);');
+      await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_email VARCHAR(100);');
+      await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE;');
     }
     await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
     logger.info('Modelos sincronizados con la base de datos');

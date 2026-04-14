@@ -64,6 +64,23 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    host_name: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    host_email: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      validate: { isEmail: true },
+    },
+    company_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'companies',
+        key: 'id',
+      },
+    },
     created_by: {
       type: DataTypes.INTEGER,
       allowNull: false,
