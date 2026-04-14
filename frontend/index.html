@@ -1039,6 +1039,13 @@
         <div class="modal-body">
           <p class="fw-semibold">¿Estás seguro de que deseas activar la alarma de evacuación?</p>
           <p class="text-muted small">Se enviará una notificación a TODOS los visitantes actuales y empleados con teléfono registrado.</p>
+          <!-- Solo visible para superadmin -->
+          <div class="mb-3 d-none" id="evacuationCompanyGroup">
+            <label class="form-label fw-semibold">Empresa <span class="text-danger">*</span></label>
+            <select class="form-select" id="evacuationCompanyId">
+              <option value="">— Selecciona empresa —</option>
+            </select>
+          </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Canal de notificación</label>
             <select class="form-select" id="evacuationChannel">

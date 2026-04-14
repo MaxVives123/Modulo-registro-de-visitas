@@ -8,7 +8,7 @@ module.exports = (sequelize) => {
       references: { model: 'companies', key: 'id' },
     },
     triggered_by: {
-      type: DataTypes.INTEGER, allowNull: false,
+      type: DataTypes.INTEGER, allowNull: true,
       references: { model: 'users', key: 'id' },
     },
     status: {

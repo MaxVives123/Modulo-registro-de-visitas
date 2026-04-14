@@ -176,7 +176,7 @@ async function triggerEvacuation(req, res, next) {
 
     const event = await EvacuationEvent.create({
       company_id: companyId,
-      triggered_by: 1, // sistema externo → usar primer superadmin disponible
+      triggered_by: null, // disparado por sistema externo (sin usuario interno)
       status: 'active',
       channel_used: ch,
       message: msg,

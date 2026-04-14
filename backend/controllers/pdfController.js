@@ -47,13 +47,14 @@ async function exportListPDF(req, res, next) {
     doc.moveDown(1);
 
     const cols = [
-      { label: 'Visitante', width: 120 },
-      { label: 'Documento', width: 80 },
-      { label: 'Empresa', width: 100 },
-      { label: 'Destino', width: 100 },
-      { label: 'Estado', width: 80 },
-      { label: 'Entrada', width: 110 },
-      { label: 'Salida', width: 110 },
+      { label: 'Visitante', width: 110 },
+      { label: 'Documento', width: 75 },
+      { label: 'Empresa', width: 90 },
+      { label: 'Destino', width: 90 },
+      { label: 'Matrícula', width: 70 },
+      { label: 'Estado', width: 75 },
+      { label: 'Entrada', width: 100 },
+      { label: 'Salida', width: 100 },
     ];
     const tableLeft = doc.page.margins.left;
     const rowHeight = 18;
@@ -95,6 +96,7 @@ async function exportListPDF(req, res, next) {
         v.visitor_document,
         v.visitor_company || '',
         v.destination,
+        v.vehicle_plate || '',
         STATUS_LABELS[v.status] || v.status,
         fmtDate(v.check_in),
         fmtDate(v.check_out),
@@ -148,6 +150,10 @@ async function exportVisitPDF(req, res, next) {
       ['Email', visit.visitor_email || 'N/A'],
       ['Teléfono', visit.visitor_phone || 'N/A'],
       ['Destino', visit.destination],
+      ['Persona a visitar', visit.host_name || 'N/A'],
+      ['Matrícula vehículo', visit.vehicle_plate || 'N/A'],
+      ['Sede', visit.site || 'N/A'],
+      ['Edificio', visit.building || 'N/A'],
       ['Motivo', visit.purpose],
       ['Estado', STATUS_LABELS[visit.status] || visit.status],
       ['Entrada', fmtDate(visit.check_in) || 'Sin registro'],

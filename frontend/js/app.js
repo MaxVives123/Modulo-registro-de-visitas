@@ -640,6 +640,7 @@ const App = {
         <td>
           <strong>${this.esc(v.visitor_name)}</strong><br>
           <small class="text-muted">${this.esc(v.visitor_document)}</small>
+          ${v.vehicle_plate ? `<br><span class="badge bg-warning text-dark" title="Matrícula"><i class="bi bi-car-front"></i> ${this.esc(v.vehicle_plate)}</span>` : ''}
         </td>
         <td class="d-none d-md-table-cell">${this.esc(v.visitor_company || '—')}</td>
         <td class="d-none d-lg-table-cell">${this.esc(v.destination)}</td>
@@ -779,6 +780,8 @@ const App = {
           <div class="detail-item"><label>Destino / Dpto.</label><span>${this.esc(v.destination)}</span></div>
           <div class="detail-item"><label>Persona visitada</label><span>${this.esc(v.host_name || 'N/A')}</span></div>
           <div class="detail-item"><label>Email persona visitada</label><span>${this.esc(v.host_email || 'N/A')}</span></div>
+          ${v.vehicle_plate ? `<div class="detail-item"><label>Matrícula vehículo</label><span class="badge bg-warning text-dark fs-6">${this.esc(v.vehicle_plate)}</span></div>` : ''}
+          ${v.site || v.building ? `<div class="detail-item"><label>Ubicación</label><span>${this.esc([v.site, v.building].filter(Boolean).join(' – '))}</span></div>` : ''}
           <div class="detail-item"><label>Motivo</label><span>${this.esc(v.purpose)}</span></div>
           <div class="detail-item"><label>Estado</label><span>${this.statusBadge(v.status)}</span></div>
           <div class="detail-item"><label>Entrada</label><span>${this.formatDateTime(v.check_in) || 'Sin registro'}</span></div>
@@ -1026,9 +1029,13 @@ const App = {
     tbody.innerHTML = users.map((u) => `
       <tr class="${!u.active ? 'table-secondary' : ''}">
         <td><small class="text-muted">#${u.id}</small></td>
-        <td><strong>${this.esc(u.username)}</strong></td>
-        <td>${this.esc(u.full_name)}</td>
-        <td><span class="badge ${u.role === 'admin' ? 'bg-primary' : 'bg-secondary'}">${u.role === 'admin' ? 'Admin' : 'Usuario'}</span></td>
+        <td><strong>${this.esc(u.username)}</strong>${u.email ? `<br><small class="text-muted">${this.esc(u.email)}</small>` : ''}</td>
+        <td>${this.esc(u.full_name)}${u.job_title ? `<br><small class="text-muted">${this.esc(u.job_title)}</small>` : ''}</td>
+        <td>
+          <span class="badge ${{ superadmin: 'bg-danger', admin: 'bg-primary', admin_empresa: 'bg-warning text-dark', user: 'bg-secondary' }[u.role] || 'bg-secondary'}">${{ superadmin: 'Superadmin', admin: 'Admin', admin_empresa: 'Admin Empresa', user: 'Usuario' }[u.role] || u.role}</span>
+          ${u.can_trigger_evacuation ? '<span class="badge bg-danger ms-1" title="Puede activar evacuación"><i class="bi bi-exclamation-triangle"></i></span>' : ''}
+          ${!u.can_receive_visits ? '<span class="badge bg-secondary ms-1" title="No recibe visitas"><i class="bi bi-slash-circle"></i></span>' : ''}
+        </td>
         <td><span class="badge ${u.active ? 'bg-success' : 'bg-danger'}">${u.active ? 'Activo' : 'Inactivo'}</span></td>
         <td class="d-none d-md-table-cell"><small>${this.formatDateTime(u.createdAt)}</small></td>
         <td>
@@ -1479,8 +1486,28 @@ const App = {
     } catch { /* silencioso */ }
   },
 
-  showEvacuationConfirm() {
-    new bootstrap.Modal(document.getElementById('evacuationConfirmModal')).show();
+  async showEvacuationConfirm() {
+    const modal = new bootstrap.Modal(document.getElementById('evacuationConfirmModal'));
+    // Si es superadmin, mostrar selector de empresa
+    const companyGroup = document.getElementById('evacuationCompanyGroup');
+    const companySelect = document.getElementById('evacuationCompanyId');
+    if (this.isSuperAdmin() && companyGroup && companySelect) {
+      companyGroup.classList.remove('d-none');
+      if (companySelect.options.length <= 1) {
+        try {
+          const data = await API.getCompanies();
+          (data.companies || []).forEach((c) => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            companySelect.appendChild(opt);
+          });
+        } catch { /* silencioso */ }
+      }
+    } else if (companyGroup) {
+      companyGroup.classList.add('d-none');
+    }
+    modal.show();
   },
 
   async handleTriggerEvacuation() {
@@ -1491,7 +1518,18 @@ const App = {
     try {
       const channel = document.getElementById('evacuationChannel').value;
       const message = document.getElementById('evacuationMessage').value.trim();
-      const data = await API.triggerEvacuation({ channel, message: message || undefined });
+      const payload = { channel, message: message || undefined };
+      // Superadmin debe seleccionar empresa
+      if (this.isSuperAdmin()) {
+        const companyId = document.getElementById('evacuationCompanyId')?.value;
+        if (!companyId) {
+          this.toast('Selecciona una empresa para activar la evacuación', 'warning');
+          btn.disabled = false; spinner.classList.add('d-none');
+          return;
+        }
+        payload.company_id = parseInt(companyId, 10);
+      }
+      const data = await API.triggerEvacuation(payload);
       bootstrap.Modal.getInstance(document.getElementById('evacuationConfirmModal')).hide();
       this.toast(`Evacuación activada. Enviados: ${data.stats?.sent || 0}, Fallidos: ${data.stats?.failed || 0}`, 'warning');
       this.loadEvacuationPage();
