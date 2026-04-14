@@ -65,8 +65,17 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiados intentos de registro, intenta de nuevo en 1 hora' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/register-company', registerLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/visits', visitRoutes);
@@ -107,15 +116,31 @@ async function startServer() {
 
   try {
     await connectDB();
-    // Tablas creadas antes de añadir el campo: en producción alter:false no añade columnas nuevas.
-    if (sequelize.getDialect() === 'postgres') {
+    const isPg = sequelize.getDialect() === 'postgres';
+
+    if (isPg) {
+      // Ampliar ENUM de roles antes del sync (idempotente con try-catch)
+      const enumAlters = [
+        "ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'superadmin'",
+        "ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'admin_empresa'",
+      ];
+      for (const sql of enumAlters) {
+        try { await sequelize.query(sql); } catch (_) { /* enum aún no existe, sync la crea */ }
+      }
+    }
+
+    await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
+    logger.info('Modelos sincronizados con la base de datos');
+
+    if (isPg) {
+      // Columnas en visits (idempotentes)
       await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS signature TEXT;');
       await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_name VARCHAR(100);');
       await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_email VARCHAR(100);');
       await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE;');
+      // company_id en users (companies ya existe tras el sync)
+      await sequelize.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;');
     }
-    await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
-    logger.info('Modelos sincronizados con la base de datos');
   } catch (error) {
     logger.error('Error al conectar o sincronizar la base de datos:', error);
     process.exit(1);

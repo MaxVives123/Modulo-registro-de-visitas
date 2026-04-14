@@ -12,9 +12,7 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: true,
-      validate: {
-        len: [3, 50],
-      },
+      validate: { len: [3, 50] },
     },
     password: {
       type: DataTypes.STRING(255),
@@ -25,9 +23,20 @@ module.exports = (sequelize) => {
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM('admin', 'user'),
+      // superadmin = acceso global sin empresa
+      // admin      = legado (mismo comportamiento que superadmin)
+      // admin_empresa = administrador de su propia empresa
+      // user       = operativo, solo su empresa
+      type: DataTypes.ENUM('superadmin', 'admin', 'admin_empresa', 'user'),
       defaultValue: 'user',
       allowNull: false,
+    },
+    company_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: 'companies', key: 'id' },
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE',
     },
     active: {
       type: DataTypes.BOOLEAN,
@@ -35,6 +44,10 @@ module.exports = (sequelize) => {
     },
   }, {
     tableName: 'users',
+    indexes: [
+      { fields: ['company_id'] },
+      { fields: ['role'] },
+    ],
     hooks: {
       beforeCreate: async (user) => {
         if (user.password) {

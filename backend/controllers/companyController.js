@@ -1,4 +1,5 @@
 const { Company } = require('../models');
+const { isSuperAdmin } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 function nullIfEmpty(v) {
@@ -9,14 +10,18 @@ function nullIfEmpty(v) {
 
 async function list(req, res, next) {
   try {
+    // admin_empresa solo ve su propia empresa
+    if (!isSuperAdmin(req.user.role)) {
+      if (!req.user.company_id) return res.json({ companies: [] });
+      const company = await Company.findByPk(req.user.company_id);
+      return res.json({ companies: company ? [company] : [] });
+    }
+
     const where = {};
     if (req.query.active !== undefined && req.query.active !== '') {
       where.active = req.query.active === 'true';
     }
-    const companies = await Company.findAll({
-      where,
-      order: [['name', 'ASC']],
-    });
+    const companies = await Company.findAll({ where, order: [['name', 'ASC']] });
     res.json({ companies });
   } catch (error) {
     next(error);

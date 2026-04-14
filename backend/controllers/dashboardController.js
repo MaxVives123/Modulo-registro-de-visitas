@@ -1,18 +1,24 @@
-const { Op, fn, col, literal } = require('sequelize');
+const { Op, fn, col } = require('sequelize');
 const { Visit } = require('../models');
+const { isSuperAdmin } = require('../middleware/auth');
+
+function getCompanyScope(req) {
+  return isSuperAdmin(req.user.role) ? {} : { company_id: req.user.company_id || null };
+}
 
 async function getStats(req, res, next) {
   try {
+    const scope = getCompanyScope(req);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const [totalVisits, todayVisits, currentlyInside, todayCheckouts] = await Promise.all([
-      Visit.count(),
-      Visit.count({ where: { created_at: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
-      Visit.count({ where: { status: 'checked_in' } }),
-      Visit.count({ where: { status: 'checked_out', check_out: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
+      Visit.count({ where: scope }),
+      Visit.count({ where: { ...scope, created_at: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
+      Visit.count({ where: { ...scope, status: 'checked_in' } }),
+      Visit.count({ where: { ...scope, status: 'checked_out', check_out: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
     ]);
 
     res.json({
@@ -28,6 +34,7 @@ async function getStats(req, res, next) {
 
 async function getActivityChart(req, res, next) {
   try {
+    const scope = getCompanyScope(req);
     const days = parseInt(req.query.days, 10) || 7;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -38,19 +45,17 @@ async function getActivityChart(req, res, next) {
         [fn('DATE', col('created_at')), 'date'],
         [fn('COUNT', col('id')), 'count'],
       ],
-      where: { created_at: { [Op.gte]: startDate } },
+      where: { ...scope, created_at: { [Op.gte]: startDate } },
       group: [fn('DATE', col('created_at'))],
       order: [[fn('DATE', col('created_at')), 'ASC']],
       raw: true,
     });
 
+    const activityMap = {};
+    activity.forEach((a) => { activityMap[a.date] = parseInt(a.count, 10); });
+
     const labels = [];
     const data = [];
-    const activityMap = {};
-    activity.forEach((a) => {
-      activityMap[a.date] = parseInt(a.count, 10);
-    });
-
     for (let i = days; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
@@ -67,11 +72,10 @@ async function getActivityChart(req, res, next) {
 
 async function getDestinationChart(req, res, next) {
   try {
+    const scope = getCompanyScope(req);
     const destinations = await Visit.findAll({
-      attributes: [
-        'destination',
-        [fn('COUNT', col('id')), 'count'],
-      ],
+      attributes: ['destination', [fn('COUNT', col('id')), 'count']],
+      where: scope,
       group: ['destination'],
       order: [[fn('COUNT', col('id')), 'DESC']],
       limit: 10,
@@ -89,7 +93,9 @@ async function getDestinationChart(req, res, next) {
 
 async function getRecentVisits(req, res, next) {
   try {
+    const scope = getCompanyScope(req);
     const visits = await Visit.findAll({
+      where: scope,
       order: [['created_at', 'DESC']],
       limit: 5,
       raw: true,

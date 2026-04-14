@@ -141,6 +141,19 @@ const authValidation = {
   ],
 };
 
+const registerCompanyValidation = [
+  body('company_name').trim().notEmpty().withMessage('El nombre de la empresa es obligatorio').isLength({ max: 150 }).escape(),
+  body('company_rif').optional({ checkFalsy: true }).trim().isLength({ max: 30 }).escape(),
+  body('company_email').optional({ checkFalsy: true }).trim().isEmail().withMessage('Email de empresa inválido').normalizeEmail(),
+  body('company_phone').optional({ checkFalsy: true }).trim().isLength({ max: 20 }).escape(),
+  body('admin_full_name').trim().notEmpty().withMessage('El nombre del administrador es obligatorio').isLength({ min: 2, max: 100 }).escape(),
+  body('admin_username')
+    .trim().notEmpty().withMessage('El usuario es obligatorio')
+    .isLength({ min: 3, max: 50 }).withMessage('El usuario debe tener entre 3 y 50 caracteres')
+    .matches(/^[\p{L}\p{N}._-]+$/u).withMessage('Solo letras, números, puntos y guiones'),
+  body('admin_password').notEmpty().withMessage('La contraseña es obligatoria').isLength({ min: 8, max: 100 }).withMessage('La contraseña debe tener al menos 8 caracteres'),
+];
+
 const userValidation = {
   create: [
     body('username')
@@ -182,4 +195,4 @@ const userValidation = {
   ],
 };
 
-module.exports = { visitValidation, authValidation, userValidation };
+module.exports = { visitValidation, authValidation, userValidation, registerCompanyValidation };

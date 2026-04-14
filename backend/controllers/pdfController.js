@@ -1,6 +1,7 @@
 const PDFDocument = require('pdfkit');
-const { Visit, User } = require('../models');
+const { Visit, User, Company } = require('../models');
 const { buildVisitExportWhere } = require('../utils/visitExportWhere');
+const { isSuperAdmin } = require('../middleware/auth');
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -20,13 +21,20 @@ function fmtDate(d) {
 async function exportListPDF(req, res, next) {
   try {
     const where = buildVisitExportWhere(req.query);
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
+
     const visits = await Visit.findAll({
       where,
-      include: [{ model: User, as: 'creator', attributes: ['full_name'] }],
+      include: [
+        { model: User, as: 'creator', attributes: ['full_name'] },
+        { model: Company, as: 'company', attributes: ['name'] },
+      ],
       order: [['created_at', 'DESC']],
     });
 
-    const companyName = process.env.COMPANY_NAME || 'Mi Empresa S.A.';
+    const companyName = req.user.company_id
+      ? (visits[0]?.company?.name || process.env.COMPANY_NAME || 'Mi Empresa S.A.')
+      : (process.env.COMPANY_NAME || 'Sistema de Registro de Visitas');
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -105,15 +113,22 @@ async function exportListPDF(req, res, next) {
 
 async function exportVisitPDF(req, res, next) {
   try {
-    const visit = await Visit.findByPk(req.params.id, {
-      include: [{ model: User, as: 'creator', attributes: ['full_name'] }],
+    const where = { id: req.params.id };
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
+
+    const visit = await Visit.findOne({
+      where,
+      include: [
+        { model: User, as: 'creator', attributes: ['full_name'] },
+        { model: Company, as: 'company', attributes: ['name'] },
+      ],
     });
 
     if (!visit) {
       return res.status(404).json({ error: 'Visita no encontrada' });
     }
 
-    const companyName = process.env.COMPANY_NAME || 'Mi Empresa S.A.';
+    const companyName = visit.company?.name || process.env.COMPANY_NAME || 'Mi Empresa S.A.';
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
 
     res.setHeader('Content-Type', 'application/pdf');

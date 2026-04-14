@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { Notification, User } = require('../models');
 
 async function list(req, res, next) {
@@ -58,9 +59,28 @@ async function markAllRead(req, res, next) {
   }
 }
 
-async function notifyAdmins(title, message, type = 'info') {
+/**
+ * Notifica a los administradores relevantes.
+ * - Si se pasa companyId: notifica a admin_empresa de esa empresa.
+ * - Si no: notifica a superadmin/admin globales.
+ */
+async function notifyAdmins(title, message, type = 'info', companyId = null) {
   try {
-    const admins = await User.findAll({ where: { role: 'admin', active: true }, attributes: ['id'] });
+    let where;
+    if (companyId) {
+      where = {
+        company_id: companyId,
+        role: { [Op.in]: ['admin_empresa', 'admin'] },
+        active: true,
+      };
+    } else {
+      where = {
+        role: { [Op.in]: ['superadmin', 'admin'] },
+        active: true,
+      };
+    }
+
+    const admins = await User.findAll({ where, attributes: ['id'] });
     const records = admins.map((a) => ({ user_id: a.id, title, message, type, read: false }));
     if (records.length) await Notification.bulkCreate(records);
   } catch (_) { /* best effort */ }

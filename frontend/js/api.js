@@ -79,6 +79,9 @@ const API = {
   login(username, password) {
     return this.post('/auth/login', { username, password });
   },
+  registerCompany(data) {
+    return this.post('/auth/register-company', data);
+  },
 
   // Dashboard
   getStats() { return this.get('/dashboard/stats'); },

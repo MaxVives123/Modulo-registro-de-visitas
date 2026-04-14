@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { authMiddleware, companyAdminOrAbove } = require('../middleware/auth');
 const { validationMiddleware } = require('../middleware/errorHandler');
 const { userValidation } = require('../utils/validators');
 const userController = require('../controllers/userController');
 
 router.use(authMiddleware);
-router.use(adminOnly);
+router.use(companyAdminOrAbove);
 
 router.get('/', userController.list);
 router.get('/:id', userController.getById);

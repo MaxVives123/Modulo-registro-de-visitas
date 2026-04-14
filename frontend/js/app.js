@@ -8,6 +8,12 @@ const App = {
   notifInterval: null,
   _companiesCache: [],
 
+  /** Helpers de rol */
+  currentUser() { return JSON.parse(localStorage.getItem('user') || '{}'); },
+  isSuperAdmin() { const r = this.currentUser().role; return r === 'superadmin' || r === 'admin'; },
+  isCompanyAdmin() { return this.currentUser().role === 'admin_empresa'; },
+  canManageUsers() { return this.isSuperAdmin() || this.isCompanyAdmin(); },
+
   init() {
     if (API.token && localStorage.getItem('user')) {
       this.showApp();
@@ -20,6 +26,9 @@ const App = {
 
   bindEvents() {
     document.getElementById('loginForm').addEventListener('submit', (e) => this.handleLogin(e));
+    document.getElementById('registerForm').addEventListener('submit', (e) => this.handleRegisterCompany(e));
+    document.getElementById('showRegisterLink').addEventListener('click', (e) => { e.preventDefault(); this.showRegister(); });
+    document.getElementById('showLoginLink').addEventListener('click', (e) => { e.preventDefault(); this.showLoginForm(); });
     document.getElementById('logoutBtn').addEventListener('click', () => this.handleLogout());
     document.getElementById('visitForm').addEventListener('submit', (e) => this.handleVisitSubmit(e));
     document.getElementById('sidebarToggle').addEventListener('click', () => this.toggleSidebar());
@@ -61,6 +70,17 @@ const App = {
   showLogin() {
     document.getElementById('loginScreen').classList.remove('d-none');
     document.getElementById('appLayout').classList.add('d-none');
+    this.showLoginForm();
+  },
+
+  showLoginForm() {
+    document.getElementById('loginCard').classList.remove('d-none');
+    document.getElementById('registerCard').classList.add('d-none');
+  },
+
+  showRegister() {
+    document.getElementById('loginCard').classList.add('d-none');
+    document.getElementById('registerCard').classList.remove('d-none');
   },
 
   showApp() {
@@ -69,13 +89,33 @@ const App = {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     document.getElementById('sidebarUserName').textContent = user.full_name || 'Usuario';
     document.getElementById('navUserName').textContent = user.full_name || 'Usuario';
-    const usersItem = document.getElementById('sidebarUsersItem');
-    if (usersItem) {
-      usersItem.classList.toggle('d-none', user.role !== 'admin');
+    const isSA = this.isSuperAdmin();
+    const canUsers = this.canManageUsers();
+
+    // Empresas: solo superadmin
+    document.getElementById('sidebarCompaniesItem')?.classList.toggle('d-none', !isSA);
+    // Usuarios: superadmin y admin_empresa
+    document.getElementById('sidebarUsersItem')?.classList.toggle('d-none', !canUsers);
+
+    // Badge de empresa en sidebar (para admin_empresa y user)
+    const companyBadge = document.getElementById('sidebarCompanyBadge');
+    const companyNameEl = document.getElementById('sidebarCompanyName');
+    if (!isSA && user.company_name) {
+      companyBadge?.classList.remove('d-none');
+      if (companyNameEl) companyNameEl.textContent = user.company_name;
+    } else {
+      companyBadge?.classList.add('d-none');
     }
-    const companiesItem = document.getElementById('sidebarCompaniesItem');
-    if (companiesItem) {
-      companiesItem.classList.toggle('d-none', user.role !== 'admin');
+
+    // Etiqueta empresa en panel de usuarios
+    const usersLabel = document.getElementById('usersCompanyLabel');
+    if (usersLabel) {
+      if (!isSA && user.company_name) {
+        usersLabel.textContent = user.company_name;
+        usersLabel.classList.remove('d-none');
+      } else {
+        usersLabel.classList.add('d-none');
+      }
     }
     this.startNotifPolling();
   },
@@ -106,6 +146,63 @@ const App = {
       this.navigate('dashboard');
     } catch (err) {
       errorDiv.textContent = err.error || 'Error al iniciar sesión';
+      errorDiv.classList.remove('d-none');
+    } finally {
+      btn.disabled = false;
+      spinner.classList.add('d-none');
+    }
+  },
+
+  async handleRegisterCompany(e) {
+    e.preventDefault();
+    const btn = document.getElementById('registerBtn');
+    const spinner = document.getElementById('registerSpinner');
+    const errorDiv = document.getElementById('registerError');
+    errorDiv.classList.add('d-none');
+
+    const companyName = document.getElementById('regCompanyName').value.trim();
+    const adminName = document.getElementById('regAdminName').value.trim();
+    const adminUser = document.getElementById('regAdminUser').value.trim();
+    const adminPass = document.getElementById('regAdminPass').value;
+    const adminPassConfirm = document.getElementById('regAdminPassConfirm').value;
+
+    if (!companyName || !adminName || !adminUser || !adminPass) {
+      errorDiv.textContent = 'Completa todos los campos obligatorios.';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+    if (adminPass.length < 8) {
+      errorDiv.textContent = 'La contraseña debe tener al menos 8 caracteres.';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+    if (adminPass !== adminPassConfirm) {
+      errorDiv.textContent = 'Las contraseñas no coinciden.';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+
+    try {
+      const data = await API.registerCompany({
+        company_name: companyName,
+        company_rif: document.getElementById('regCompanyRif').value.trim(),
+        company_email: document.getElementById('regCompanyEmail').value.trim(),
+        company_phone: document.getElementById('regCompanyPhone').value.trim(),
+        admin_full_name: adminName,
+        admin_username: adminUser,
+        admin_password: adminPass,
+      });
+
+      API.setToken(data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      this.showApp();
+      this.navigate('dashboard');
+      this.toast(`¡Bienvenido! Empresa "${data.company.name}" registrada correctamente.`, 'success');
+    } catch (err) {
+      errorDiv.textContent = err.error || 'Error al registrar la empresa.';
       errorDiv.classList.remove('d-none');
     } finally {
       btn.disabled = false;
@@ -154,7 +251,7 @@ const App = {
         this.editingVisitId = null;
         this.resetVisitForm();
         this.loadDestinations();
-        this.loadCompaniesForSelect();
+        this._applyCompanyScopeToForm();
         break;
       case 'users':
         document.getElementById('pageUsers').classList.remove('d-none');
@@ -206,9 +303,26 @@ const App = {
     this.loadDestinations();
   },
 
+  _applyCompanyScopeToForm() {
+    const user = this.currentUser();
+    const selectGroup = document.getElementById('vCompanySelectGroup');
+    const fixedGroup = document.getElementById('vCompanyFixedGroup');
+    const fixedEl = document.getElementById('vCompanyFixed');
+
+    if (this.isSuperAdmin()) {
+      selectGroup?.classList.remove('d-none');
+      fixedGroup?.classList.add('d-none');
+      this.loadCompaniesForSelect();
+    } else {
+      selectGroup?.classList.add('d-none');
+      fixedGroup?.classList.remove('d-none');
+      if (fixedEl) fixedEl.textContent = user.company_name || 'Mi empresa';
+    }
+  },
+
   async loadVisitForEdit(id) {
     try {
-      await this.loadCompaniesForSelect();
+      this._applyCompanyScopeToForm();
       const data = await API.getVisit(id);
       const v = data.visit;
       document.getElementById('visitId').value = v.id;
@@ -231,7 +345,8 @@ const App = {
   resetVisitForm() {
     document.getElementById('visitForm').reset();
     document.getElementById('visitId').value = '';
-    document.getElementById('vCompanyId').value = '';
+    const selEl = document.getElementById('vCompanyId');
+    if (selEl) selEl.value = '';
     document.getElementById('vHostName').value = '';
     document.getElementById('vHostEmail').value = '';
     document.getElementById('visitFormTitle').innerHTML = '<i class="bi bi-person-plus me-2"></i>Nueva Visita';
@@ -288,7 +403,8 @@ const App = {
       destination: document.getElementById('vDestination').value.trim(),
       host_name: document.getElementById('vHostName').value.trim(),
       host_email: document.getElementById('vHostEmail').value.trim(),
-      company_id: companyIdRaw ? parseInt(companyIdRaw, 10) : null,
+      // Solo el superadmin puede elegir empresa desde el selector
+      company_id: this.isSuperAdmin() ? (companyIdRaw ? parseInt(companyIdRaw, 10) : null) : undefined,
       purpose: document.getElementById('vPurpose').value.trim(),
       notes: document.getElementById('vNotes').value.trim(),
     };
@@ -890,10 +1006,26 @@ const App = {
     const pwGroup = document.getElementById('ufPasswordGroup');
     const activeGroup = document.getElementById('ufActiveGroup');
     const errorDiv = document.getElementById('userFormError');
+    const roleSelect = document.getElementById('ufRole');
 
     document.getElementById('userForm').reset();
     document.getElementById('userFormId').value = '';
     errorDiv.classList.add('d-none');
+
+    // Ajustar opciones de rol según quién llama
+    if (roleSelect) {
+      if (this.isSuperAdmin()) {
+        roleSelect.innerHTML = `
+          <option value="user">Usuario</option>
+          <option value="admin_empresa">Admin Empresa</option>
+          <option value="admin">Admin</option>
+          <option value="superadmin">Superadmin</option>`;
+      } else {
+        roleSelect.innerHTML = `
+          <option value="user">Usuario</option>
+          <option value="admin_empresa">Admin Empresa</option>`;
+      }
+    }
 
     if (userId) {
       title.innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Usuario';
@@ -995,6 +1127,7 @@ const App = {
 
   // ===== COMPANIES =====
   async loadCompaniesForSelect() {
+    if (!this.isSuperAdmin()) return; // no necesario para usuarios de empresa
     try {
       const data = await API.getCompanies({ active: 'true' });
       this._companiesCache = data.companies || [];

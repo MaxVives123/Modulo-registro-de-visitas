@@ -1,11 +1,14 @@
 const QRCode = require('qrcode');
-const { Visit, User } = require('../models');
+const { Visit, User, Company } = require('../models');
 const logger = require('../utils/logger');
 const { getPublicBaseUrl } = require('../utils/publicUrl');
+const { isSuperAdmin } = require('../middleware/auth');
 
 async function generateQR(req, res, next) {
   try {
-    const visit = await Visit.findByPk(req.params.id);
+    const where = { id: req.params.id };
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
+    const visit = await Visit.findOne({ where });
 
     if (!visit) {
       return res.status(404).json({ error: 'Visita no encontrada' });
@@ -100,8 +103,15 @@ async function checkOutByQR(req, res, next) {
 
 async function getCredentialData(req, res, next) {
   try {
-    const visit = await Visit.findByPk(req.params.id, {
-      include: [{ model: User, as: 'creator', attributes: ['full_name'] }],
+    const where = { id: req.params.id };
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
+
+    const visit = await Visit.findOne({
+      where,
+      include: [
+        { model: User, as: 'creator', attributes: ['full_name'] },
+        { model: Company, as: 'company', attributes: ['name'] },
+      ],
     });
 
     if (!visit) {
@@ -118,7 +128,7 @@ async function getCredentialData(req, res, next) {
     });
 
     res.json({
-      company_name: process.env.COMPANY_NAME || 'Mi Empresa S.A.',
+      company_name: visit.company?.name || process.env.COMPANY_NAME || 'Mi Empresa S.A.',
       visit: {
         id: visit.id,
         visitor_name: visit.visitor_name,

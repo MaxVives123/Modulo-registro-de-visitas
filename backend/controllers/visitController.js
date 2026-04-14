@@ -6,8 +6,16 @@ const logger = require('../utils/logger');
 const { buildVisitExportWhere } = require('../utils/visitExportWhere');
 const { notifyAdmins, notifyUser } = require('./notificationController');
 const { sendVisitNotification } = require('../utils/emailService');
+const { isSuperAdmin } = require('../middleware/auth');
 
 const COMPANY_INCLUDE = { model: Company, as: 'company', attributes: ['id', 'name'] };
+
+/** Aplica scope de empresa a un objeto where */
+function applyCompanyScope(where, req) {
+  const scope = isSuperAdmin(req.user.role) ? null : (req.user.company_id || null);
+  if (scope) where.company_id = scope;
+  return scope;
+}
 
 async function list(req, res, next) {
   try {
@@ -16,6 +24,12 @@ async function list(req, res, next) {
     const offset = (page - 1) * limit;
 
     const where = {};
+    applyCompanyScope(where, req);
+
+    // Superadmin puede filtrar por empresa específica via query param
+    if (isSuperAdmin(req.user.role) && req.query.company_id) {
+      where.company_id = parseInt(req.query.company_id, 10);
+    }
 
     if (req.query.status) {
       where.status = req.query.status;
@@ -48,10 +62,6 @@ async function list(req, res, next) {
       where.destination = req.query.destination;
     }
 
-    if (req.query.company_id) {
-      where.company_id = parseInt(req.query.company_id, 10);
-    }
-
     const { rows: visits, count: total } = await Visit.findAndCountAll({
       where,
       include: [
@@ -79,7 +89,11 @@ async function list(req, res, next) {
 
 async function getById(req, res, next) {
   try {
-    const visit = await Visit.findByPk(req.params.id, {
+    const where = { id: req.params.id };
+    applyCompanyScope(where, req);
+
+    const visit = await Visit.findOne({
+      where,
       include: [
         { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
         COMPANY_INCLUDE,
@@ -118,7 +132,10 @@ async function create(req, res, next) {
       signature: nullIfEmpty(req.body.signature),
       host_name: nullIfEmpty(req.body.host_name),
       host_email: nullIfEmpty(req.body.host_email),
-      company_id: req.body.company_id ? parseInt(req.body.company_id, 10) : null,
+      // Si no es superadmin, la empresa se fuerza a la del usuario autenticado
+      company_id: isSuperAdmin(req.user.role)
+        ? (req.body.company_id ? parseInt(req.body.company_id, 10) : null)
+        : (req.user.company_id || null),
       qr_code: qrCode,
       status: 'checked_in',
       check_in: new Date(),
@@ -150,7 +167,9 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const visit = await Visit.findByPk(req.params.id);
+    const whereUpd = { id: req.params.id };
+    applyCompanyScope(whereUpd, req);
+    const visit = await Visit.findOne({ where: whereUpd });
 
     if (!visit) {
       return res.status(404).json({ error: 'Visita no encontrada' });
@@ -187,7 +206,9 @@ async function update(req, res, next) {
 
 async function remove(req, res, next) {
   try {
-    const visit = await Visit.findByPk(req.params.id);
+    const whereRm = { id: req.params.id };
+    applyCompanyScope(whereRm, req);
+    const visit = await Visit.findOne({ where: whereRm });
 
     if (!visit) {
       return res.status(404).json({ error: 'Visita no encontrada' });
@@ -203,7 +224,9 @@ async function remove(req, res, next) {
 
 async function checkIn(req, res, next) {
   try {
-    const visit = await Visit.findByPk(req.params.id);
+    const whereCI = { id: req.params.id };
+    applyCompanyScope(whereCI, req);
+    const visit = await Visit.findOne({ where: whereCI });
 
     if (!visit) {
       return res.status(404).json({ error: 'Visita no encontrada' });
@@ -223,7 +246,9 @@ async function checkIn(req, res, next) {
 
 async function checkOut(req, res, next) {
   try {
-    const visit = await Visit.findByPk(req.params.id);
+    const whereCO = { id: req.params.id };
+    applyCompanyScope(whereCO, req);
+    const visit = await Visit.findOne({ where: whereCO });
 
     if (!visit) {
       return res.status(404).json({ error: 'Visita no encontrada' });
@@ -251,7 +276,10 @@ async function checkOut(req, res, next) {
 
 async function getDestinations(req, res, next) {
   try {
+    const whereDest = {};
+    applyCompanyScope(whereDest, req);
     const destinations = await Visit.findAll({
+      where: whereDest,
       attributes: [[Visit.sequelize.fn('DISTINCT', Visit.sequelize.col('destination')), 'destination']],
       order: [['destination', 'ASC']],
       raw: true,
@@ -265,6 +293,7 @@ async function getDestinations(req, res, next) {
 async function exportCSV(req, res, next) {
   try {
     const where = buildVisitExportWhere(req.query);
+    applyCompanyScope(where, req);
 
     const visits = await Visit.findAll({
       where,
@@ -329,6 +358,7 @@ const STATUS_LABELS_EXPORT = {
 async function exportExcel(req, res, next) {
   try {
     const where = buildVisitExportWhere(req.query);
+    applyCompanyScope(where, req);
     const visits = await Visit.findAll({
       where,
       include: [
