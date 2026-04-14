@@ -119,27 +119,81 @@ async function startServer() {
     const isPg = sequelize.getDialect() === 'postgres';
 
     if (isPg) {
-      // Ampliar ENUM de roles antes del sync (idempotente con try-catch)
+      // 1. Ampliar ENUM de roles (debe ir antes del sync)
       const enumAlters = [
         "ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'superadmin'",
         "ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'admin_empresa'",
       ];
       for (const sql of enumAlters) {
-        try { await sequelize.query(sql); } catch (_) { /* enum aún no existe, sync la crea */ }
+        try { await sequelize.query(sql); } catch (_) { /* enum aún no existe → sync la crea */ }
       }
+
+      // 2. Añadir columnas ANTES del sync para que los índices definidos en el
+      //    modelo puedan crearse sin error "column does not exist".
+      //    Envuelto en try-catch por si la tabla referenciada no existe aún
+      //    (primer despliegue desde cero: sync creará todo correctamente).
+      const preAlters = [
+        // visits
+        'ALTER TABLE visits ADD COLUMN IF NOT EXISTS signature TEXT',
+        'ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_name VARCHAR(100)',
+        'ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_email VARCHAR(100)',
+        // users.company_id debe existir antes de que sync cree el índice
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER',
+      ];
+      for (const sql of preAlters) {
+        try { await sequelize.query(sql + ';'); } catch (_) { /* tabla no existe aún */ }
+      }
+
+      // visits.company_id FK (companies debe existir)
+      try {
+        await sequelize.query(
+          'ALTER TABLE visits ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE;',
+        );
+      } catch (_) { /* companies aún no existe (primer despliegue) */ }
+
+      // users.company_id FK (companies debe existir)
+      try {
+        await sequelize.query(
+          'ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;',
+        );
+      } catch (_) { /* companies aún no existe (primer despliegue) */ }
     }
 
+    // 3. Sync: en producción solo crea tablas nuevas, no altera las existentes
     await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
     logger.info('Modelos sincronizados con la base de datos');
 
     if (isPg) {
-      // Columnas en visits (idempotentes)
-      await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS signature TEXT;');
-      await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_name VARCHAR(100);');
-      await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_email VARCHAR(100);');
-      await sequelize.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE;');
-      // company_id en users (companies ya existe tras el sync)
-      await sequelize.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;');
+      // 4. Post-sync: añadir FK de company_id en users/visits si aún no existe
+      //    (el ALTER TABLE anterior puede haber añadido la columna sin FK si
+      //    companies no existía en ese momento; ahora sí existe tras el sync)
+      const postAlters = [
+        `DO $$
+         BEGIN
+           IF NOT EXISTS (
+             SELECT 1 FROM information_schema.table_constraints
+             WHERE constraint_name = 'users_company_id_fkey'
+               AND table_name = 'users'
+           ) THEN
+             ALTER TABLE users ADD CONSTRAINT users_company_id_fkey
+               FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
+           END IF;
+         END $$`,
+        `DO $$
+         BEGIN
+           IF NOT EXISTS (
+             SELECT 1 FROM information_schema.table_constraints
+             WHERE constraint_name = 'visits_company_id_fkey'
+               AND table_name = 'visits'
+           ) THEN
+             ALTER TABLE visits ADD CONSTRAINT visits_company_id_fkey
+               FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE;
+           END IF;
+         END $$`,
+      ];
+      for (const sql of postAlters) {
+        try { await sequelize.query(sql); } catch (_) { /* FK ya existe */ }
+      }
     }
   } catch (error) {
     logger.error('Error al conectar o sincronizar la base de datos:', error);
