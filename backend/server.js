@@ -19,12 +19,13 @@ const qrRoutes = require('./routes/qr');
 const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
 const companyRoutes = require('./routes/companies');
+const evacuationRoutes = require('./routes/evacuation');
+const integrationsRoutes = require('./routes/integrations');
 
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-// Tras un proxy inverso o túnel (Cloudflare, nginx): permite req.ip y rate-limit correctos por cliente.
 const trustProxy = process.env.TRUST_PROXY;
 if (trustProxy === '1' || trustProxy === 'true' || trustProxy === 'yes') {
   app.set('trust proxy', 1);
@@ -32,45 +33,26 @@ if (trustProxy === '1' || trustProxy === 'true' || trustProxy === 'yes') {
   app.set('trust proxy', Number(trustProxy));
 }
 
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-}));
-
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
-
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-app.use(morgan('combined', {
-  stream: { write: (message) => logger.info(message.trim()) },
-}));
+app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
+  windowMs: 15 * 60 * 1000, max: 500,
   message: { error: 'Demasiadas solicitudes, intente de nuevo más tarde' },
-  standardHeaders: true,
-  legacyHeaders: false,
+  standardHeaders: true, legacyHeaders: false,
 });
-
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
+  windowMs: 15 * 60 * 1000, max: 10,
   message: { error: 'Demasiados intentos de login, intente de nuevo en 15 minutos' },
-  standardHeaders: true,
-  legacyHeaders: false,
+  standardHeaders: true, legacyHeaders: false,
 });
-
 const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
+  windowMs: 60 * 60 * 1000, max: 5,
   message: { error: 'Demasiados intentos de registro, intenta de nuevo en 1 hora' },
-  standardHeaders: true,
-  legacyHeaders: false,
+  standardHeaders: true, legacyHeaders: false,
 });
 
 app.use('/api/', apiLimiter);
@@ -84,6 +66,8 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/evacuation', evacuationRoutes);
+app.use('/api/integrations', integrationsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -94,17 +78,88 @@ app.use(express.static(path.join(__dirname, '../frontend'), {
 }));
 
 app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api/')) {
-    return next();
-  }
+  if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 app.use(notFound);
 app.use(errorHandler);
 
+async function runPreAlters(isPg) {
+  if (!isPg) return;
+
+  // 1. Ampliar ENUM de roles (antes del sync)
+  const enumAlters = [
+    "ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'superadmin'",
+    "ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'admin_empresa'",
+  ];
+  for (const sql of enumAlters) {
+    try { await sequelize.query(sql); } catch (_) { /* enum no existe aún */ }
+  }
+
+  // 2. Columnas nuevas en visits
+  const visitAlters = [
+    'ALTER TABLE visits ADD COLUMN IF NOT EXISTS signature TEXT',
+    'ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_name VARCHAR(100)',
+    'ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_email VARCHAR(100)',
+    'ALTER TABLE visits ADD COLUMN IF NOT EXISTS vehicle_plate VARCHAR(20)',
+    'ALTER TABLE visits ADD COLUMN IF NOT EXISTS site VARCHAR(50)',
+    'ALTER TABLE visits ADD COLUMN IF NOT EXISTS building VARCHAR(50)',
+    'ALTER TABLE visits ADD COLUMN IF NOT EXISTS company_id INTEGER',
+  ];
+
+  // 3. Columnas nuevas en users (antes del sync para que los índices no fallen)
+  const userAlters = [
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS dni VARCHAR(30)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS job_level VARCHAR(50)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(100)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(50)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS site VARCHAR(50)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS building VARCHAR(50)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS can_receive_visits BOOLEAN NOT NULL DEFAULT TRUE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS can_trigger_evacuation BOOLEAN NOT NULL DEFAULT FALSE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS is_present BOOLEAN NOT NULL DEFAULT FALSE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMP WITH TIME ZONE',
+  ];
+
+  for (const sql of [...visitAlters, ...userAlters]) {
+    try { await sequelize.query(sql + ';'); } catch (_) { /* tabla no existe aún */ }
+  }
+}
+
+async function runPostAlters(isPg) {
+  if (!isPg) return;
+
+  const fkAlters = [
+    `DO $$ BEGIN
+       IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints
+         WHERE constraint_name='users_company_id_fkey' AND table_name='users')
+       THEN ALTER TABLE users ADD CONSTRAINT users_company_id_fkey
+         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
+       END IF; END $$`,
+    `DO $$ BEGIN
+       IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints
+         WHERE constraint_name='visits_company_id_fkey' AND table_name='visits')
+       THEN ALTER TABLE visits ADD CONSTRAINT visits_company_id_fkey
+         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE;
+       END IF; END $$`,
+    // Índices de visits nuevos
+    'CREATE INDEX IF NOT EXISTS visits_vehicle_plate ON visits (vehicle_plate)',
+    'CREATE INDEX IF NOT EXISTS visits_site ON visits (site)',
+    'CREATE INDEX IF NOT EXISTS visits_building ON visits (building)',
+    // Índices de users nuevos
+    'CREATE INDEX IF NOT EXISTS users_is_present ON users (is_present)',
+    'CREATE INDEX IF NOT EXISTS users_can_receive_visits ON users (can_receive_visits)',
+  ];
+  for (const sql of fkAlters) {
+    try { await sequelize.query(sql); } catch (_) { /* ya existe */ }
+  }
+}
+
 async function startServer() {
-  // Escuchar antes de la BD: Railway healthcheck pega a /api/health mientras Postgres enlaza.
   await new Promise((resolve, reject) => {
     const server = app.listen(PORT, HOST, () => {
       logger.info(`Servidor escuchando en http://${HOST}:${PORT}`);
@@ -118,85 +173,18 @@ async function startServer() {
     await connectDB();
     const isPg = sequelize.getDialect() === 'postgres';
 
-    if (isPg) {
-      // 1. Ampliar ENUM de roles (debe ir antes del sync)
-      const enumAlters = [
-        "ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'superadmin'",
-        "ALTER TYPE enum_users_role ADD VALUE IF NOT EXISTS 'admin_empresa'",
-      ];
-      for (const sql of enumAlters) {
-        try { await sequelize.query(sql); } catch (_) { /* enum aún no existe → sync la crea */ }
-      }
+    await runPreAlters(isPg);
 
-      // 2. Añadir columnas ANTES del sync para que los índices definidos en el
-      //    modelo puedan crearse sin error "column does not exist".
-      //    Envuelto en try-catch por si la tabla referenciada no existe aún
-      //    (primer despliegue desde cero: sync creará todo correctamente).
-      const preAlters = [
-        // visits
-        'ALTER TABLE visits ADD COLUMN IF NOT EXISTS signature TEXT',
-        'ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_name VARCHAR(100)',
-        'ALTER TABLE visits ADD COLUMN IF NOT EXISTS host_email VARCHAR(100)',
-        // users.company_id debe existir antes de que sync cree el índice
-        'ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER',
-      ];
-      for (const sql of preAlters) {
-        try { await sequelize.query(sql + ';'); } catch (_) { /* tabla no existe aún */ }
-      }
-
-      // visits.company_id FK (companies debe existir)
-      try {
-        await sequelize.query(
-          'ALTER TABLE visits ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE;',
-        );
-      } catch (_) { /* companies aún no existe (primer despliegue) */ }
-
-      // users.company_id FK (companies debe existir)
-      try {
-        await sequelize.query(
-          'ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL;',
-        );
-      } catch (_) { /* companies aún no existe (primer despliegue) */ }
-    }
-
-    // 3. Sync: en producción solo crea tablas nuevas, no altera las existentes
     await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
     logger.info('Modelos sincronizados con la base de datos');
 
-    if (isPg) {
-      // 4. Post-sync: añadir FK de company_id en users/visits si aún no existe
-      //    (el ALTER TABLE anterior puede haber añadido la columna sin FK si
-      //    companies no existía en ese momento; ahora sí existe tras el sync)
-      const postAlters = [
-        `DO $$
-         BEGIN
-           IF NOT EXISTS (
-             SELECT 1 FROM information_schema.table_constraints
-             WHERE constraint_name = 'users_company_id_fkey'
-               AND table_name = 'users'
-           ) THEN
-             ALTER TABLE users ADD CONSTRAINT users_company_id_fkey
-               FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
-           END IF;
-         END $$`,
-        `DO $$
-         BEGIN
-           IF NOT EXISTS (
-             SELECT 1 FROM information_schema.table_constraints
-             WHERE constraint_name = 'visits_company_id_fkey'
-               AND table_name = 'visits'
-           ) THEN
-             ALTER TABLE visits ADD CONSTRAINT visits_company_id_fkey
-               FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE;
-           END IF;
-         END $$`,
-      ];
-      for (const sql of postAlters) {
-        try { await sequelize.query(sql); } catch (_) { /* FK ya existe */ }
-      }
-    }
+    await runPostAlters(isPg);
+
+    // Seed: crear superadmin si no existe
+    const { ensureAdmin } = require('./seeds/ensure-admin');
+    await ensureAdmin();
   } catch (error) {
-    logger.error('Error al conectar o sincronizar la base de datos:', error);
+    logger.error('Error al inicializar la base de datos:', error);
     process.exit(1);
   }
 }

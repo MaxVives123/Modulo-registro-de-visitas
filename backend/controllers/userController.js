@@ -2,19 +2,18 @@ const { User, Company } = require('../models');
 const { isSuperAdmin } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
-const USER_ATTRS = ['id', 'username', 'full_name', 'role', 'company_id', 'active', 'createdAt'];
+const USER_ATTRS = [
+  'id', 'username', 'full_name', 'role', 'company_id', 'active',
+  'phone', 'email', 'dni', 'job_level', 'job_title', 'department',
+  'site', 'building', 'can_receive_visits', 'can_trigger_evacuation',
+  'is_present', 'last_access_at', 'createdAt',
+];
 
 async function list(req, res, next) {
   try {
-    const where = { active: true };
-
-    if (isSuperAdmin(req.user.role)) {
-      // superadmin ve todos los usuarios (activos e inactivos)
-      delete where.active;
-    } else {
-      // admin_empresa ve solo los de su empresa (activos e inactivos)
+    const where = {};
+    if (!isSuperAdmin(req.user.role)) {
       where.company_id = req.user.company_id;
-      delete where.active;
     }
 
     const users = await User.findAll({
@@ -32,9 +31,7 @@ async function list(req, res, next) {
 async function getById(req, res, next) {
   try {
     const where = { id: req.params.id };
-    if (!isSuperAdmin(req.user.role)) {
-      where.company_id = req.user.company_id;
-    }
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
 
     const user = await User.findOne({
       where,
@@ -50,39 +47,48 @@ async function getById(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { username, password, full_name, role } = req.body;
+    const {
+      username, password, full_name, role,
+      phone, email, dni, job_level, job_title, department,
+      site, building, can_receive_visits, can_trigger_evacuation,
+    } = req.body;
     const callerRole = req.user.role;
 
-    // Determinar empresa del nuevo usuario
     let companyId;
     if (isSuperAdmin(callerRole)) {
       companyId = req.body.company_id ? parseInt(req.body.company_id, 10) : null;
     } else {
-      // admin_empresa solo puede crear usuarios en su propia empresa
       companyId = req.user.company_id;
     }
 
-    // Restricción de roles asignables
     let assignedRole = role || 'user';
     if (!isSuperAdmin(callerRole)) {
-      // admin_empresa solo puede crear 'user' o 'admin_empresa'
-      if (!['user', 'admin_empresa'].includes(assignedRole)) {
-        assignedRole = 'user';
-      }
+      if (!['user', 'admin_empresa'].includes(assignedRole)) assignedRole = 'user';
     }
 
     const existing = await User.findOne({ where: { username } });
-    if (existing) {
-      return res.status(409).json({ error: 'El nombre de usuario ya existe' });
-    }
+    if (existing) return res.status(409).json({ error: 'El nombre de usuario ya existe' });
+
+    // Solo superadmin puede asignar can_trigger_evacuation
+    const canTriggerEvac = isSuperAdmin(callerRole)
+      ? (can_trigger_evacuation ?? false)
+      : false;
 
     const user = await User.create({
-      username,
-      password,
-      full_name,
+      username, password, full_name,
       role: assignedRole,
       company_id: companyId,
       active: true,
+      phone: phone || null,
+      email: email || null,
+      dni: dni || null,
+      job_level: job_level || null,
+      job_title: job_title || null,
+      department: department || null,
+      site: site || null,
+      building: building || null,
+      can_receive_visits: can_receive_visits !== undefined ? Boolean(can_receive_visits) : true,
+      can_trigger_evacuation: canTriggerEvac,
     });
 
     logger.info(`Usuario creado: ${username} (role: ${assignedRole}, company: ${companyId ?? 'global'}) por ${req.user.username}`);
@@ -95,31 +101,35 @@ async function create(req, res, next) {
 async function update(req, res, next) {
   try {
     const where = { id: req.params.id };
-    if (!isSuperAdmin(req.user.role)) {
-      where.company_id = req.user.company_id;
-    }
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
 
     const user = await User.findOne({ where });
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    const { full_name, role, active } = req.body;
     const updates = {};
+    const allowed = [
+      'full_name', 'phone', 'email', 'dni', 'job_level', 'job_title',
+      'department', 'site', 'building', 'can_receive_visits',
+    ];
+    allowed.forEach((f) => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 
-    if (full_name !== undefined) updates.full_name = full_name;
-
-    if (role !== undefined) {
-      // admin_empresa no puede escalar a superadmin
-      if (!isSuperAdmin(req.user.role) && isSuperAdmin(role)) {
+    if (req.body.role !== undefined) {
+      if (!isSuperAdmin(req.user.role) && isSuperAdmin(req.body.role)) {
         return res.status(403).json({ error: 'No puedes asignar ese rol' });
       }
-      updates.role = role;
+      updates.role = req.body.role;
     }
 
-    if (active !== undefined) {
-      if (user.id === req.user.id && !active) {
+    if (req.body.active !== undefined) {
+      if (user.id === req.user.id && !req.body.active) {
         return res.status(400).json({ error: 'No puedes desactivarte a ti mismo' });
       }
-      updates.active = active;
+      updates.active = req.body.active;
+    }
+
+    // Solo superadmin puede cambiar can_trigger_evacuation
+    if (req.body.can_trigger_evacuation !== undefined && isSuperAdmin(req.user.role)) {
+      updates.can_trigger_evacuation = Boolean(req.body.can_trigger_evacuation);
     }
 
     await user.update(updates);
@@ -133,9 +143,7 @@ async function update(req, res, next) {
 async function changePassword(req, res, next) {
   try {
     const where = { id: req.params.id };
-    if (!isSuperAdmin(req.user.role)) {
-      where.company_id = req.user.company_id;
-    }
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
 
     const user = await User.findOne({ where });
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -153,9 +161,7 @@ async function changePassword(req, res, next) {
 async function remove(req, res, next) {
   try {
     const where = { id: req.params.id };
-    if (!isSuperAdmin(req.user.role)) {
-      where.company_id = req.user.company_id;
-    }
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
 
     const user = await User.findOne({ where });
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });

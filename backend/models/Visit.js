@@ -60,10 +60,10 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    signature: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
+    signature: { type: DataTypes.TEXT, allowNull: true },
+    vehicle_plate: { type: DataTypes.STRING(20), allowNull: true },
+    site: { type: DataTypes.STRING(50), allowNull: true },
+    building: { type: DataTypes.STRING(50), allowNull: true },
     host_name: {
       type: DataTypes.STRING(100),
       allowNull: true,
@@ -97,6 +97,9 @@ module.exports = (sequelize) => {
       { fields: ['qr_code'], unique: true },
       { fields: ['visitor_document'] },
       { fields: ['destination'] },
+      { fields: ['vehicle_plate'] },
+      { fields: ['site'] },
+      { fields: ['building'] },
     ],
   });
 

@@ -40,6 +40,21 @@ const App = {
     document.getElementById('cpSaveBtn')?.addEventListener('click', () => this.handleChangePassword());
     document.getElementById('btnNewCompany')?.addEventListener('click', () => this.showCompanyForm());
     document.getElementById('companyFormSaveBtn')?.addEventListener('click', () => this.handleCompanySave());
+
+    // Evacuación
+    document.getElementById('btnTriggerEvacuation')?.addEventListener('click', () => this.showEvacuationConfirm());
+    document.getElementById('confirmEvacuationBtn')?.addEventListener('click', () => this.handleTriggerEvacuation());
+    document.getElementById('btnCloseEvacuation')?.addEventListener('click', () => this.handleCloseEvacuation());
+    document.getElementById('btnRefreshPresence')?.addEventListener('click', () => this.loadPresentNow());
+    document.getElementById('btnApplyPresenceFilter')?.addEventListener('click', () => this.loadPresentNow());
+
+    // Integraciones
+    document.getElementById('testNotifForm')?.addEventListener('submit', (e) => this.handleTestNotification(e));
+    document.getElementById('btnToggleApiKey')?.addEventListener('click', () => {
+      const inp = document.getElementById('apiKeyDisplay');
+      if (inp.type === 'password') { inp.type = 'text'; } else { inp.type = 'password'; }
+    });
+
     this.initSignaturePad();
 
     document.querySelectorAll('.sidebar-link').forEach((link) => {
@@ -96,6 +111,11 @@ const App = {
     document.getElementById('sidebarCompaniesItem')?.classList.toggle('d-none', !isSA);
     // Usuarios: superadmin y admin_empresa
     document.getElementById('sidebarUsersItem')?.classList.toggle('d-none', !canUsers);
+    // Evacuación: admin o quien tenga can_trigger_evacuation
+    const canEvac = isSA || this.isCompanyAdmin() || user.can_trigger_evacuation;
+    document.getElementById('sidebarEvacuationItem')?.classList.toggle('d-none', !canEvac);
+    // Integraciones: solo superadmin
+    document.getElementById('sidebarIntegrationsItem')?.classList.toggle('d-none', !isSA);
 
     // Badge de empresa en sidebar (para admin_empresa y user)
     const companyBadge = document.getElementById('sidebarCompanyBadge');
@@ -231,6 +251,8 @@ const App = {
       'new-visit': 'Nueva Visita',
       users: 'Gestión de Usuarios',
       companies: 'Gestión de Empresas',
+      evacuation: 'Evacuación',
+      integrations: 'Integraciones',
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
 
@@ -260,6 +282,14 @@ const App = {
       case 'companies':
         document.getElementById('pageCompanies').classList.remove('d-none');
         this.loadCompanies();
+        break;
+      case 'evacuation':
+        document.getElementById('pageEvacuation').classList.remove('d-none');
+        this.loadEvacuationPage();
+        break;
+      case 'integrations':
+        document.getElementById('pageIntegrations').classList.remove('d-none');
+        this.loadIntegrationsPage();
         break;
     }
   },
@@ -334,6 +364,9 @@ const App = {
       document.getElementById('vDestination').value = v.destination || '';
       document.getElementById('vHostName').value = v.host_name || '';
       document.getElementById('vHostEmail').value = v.host_email || '';
+      document.getElementById('vVehiclePlate').value = v.vehicle_plate || '';
+      document.getElementById('vSite').value = v.site || '';
+      document.getElementById('vBuilding').value = v.building || '';
       document.getElementById('vCompanyId').value = v.company_id || '';
       document.getElementById('vPurpose').value = v.purpose || '';
       document.getElementById('vNotes').value = v.notes || '';
@@ -349,6 +382,9 @@ const App = {
     if (selEl) selEl.value = '';
     document.getElementById('vHostName').value = '';
     document.getElementById('vHostEmail').value = '';
+    document.getElementById('vVehiclePlate').value = '';
+    document.getElementById('vSite').value = '';
+    document.getElementById('vBuilding').value = '';
     document.getElementById('visitFormTitle').innerHTML = '<i class="bi bi-person-plus me-2"></i>Nueva Visita';
     document.getElementById('visitSubmitBtn').innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-check-lg me-1"></i>Registrar Visita';
     const extras = document.getElementById('visitFormExtras');
@@ -403,6 +439,9 @@ const App = {
       destination: document.getElementById('vDestination').value.trim(),
       host_name: document.getElementById('vHostName').value.trim(),
       host_email: document.getElementById('vHostEmail').value.trim(),
+      vehicle_plate: document.getElementById('vVehiclePlate').value.trim(),
+      site: document.getElementById('vSite').value.trim(),
+      building: document.getElementById('vBuilding').value.trim(),
       // Solo el superadmin puede elegir empresa desde el selector
       company_id: this.isSuperAdmin() ? (companyIdRaw ? parseInt(companyIdRaw, 10) : null) : undefined,
       purpose: document.getElementById('vPurpose').value.trim(),
@@ -572,6 +611,7 @@ const App = {
       status: document.getElementById('filterStatus')?.value || '',
       date_from: document.getElementById('filterDateFrom')?.value || '',
       date_to: document.getElementById('filterDateTo')?.value || '',
+      vehicle_plate: document.getElementById('filterPlate')?.value || '',
     };
 
     const tbody = document.getElementById('visitsTable');
@@ -680,6 +720,8 @@ const App = {
     document.getElementById('filterStatus').value = '';
     document.getElementById('filterDateFrom').value = '';
     document.getElementById('filterDateTo').value = '';
+    const filterPlate = document.getElementById('filterPlate');
+    if (filterPlate) filterPlate.value = '';
     this.visitListParams.page = 1;
     this.loadVisits();
   },
@@ -690,6 +732,7 @@ const App = {
       status: document.getElementById('filterStatus')?.value || '',
       date_from: document.getElementById('filterDateFrom')?.value || '',
       date_to: document.getElementById('filterDateTo')?.value || '',
+      vehicle_plate: document.getElementById('filterPlate')?.value?.trim() || '',
     };
   },
 
@@ -1027,6 +1070,10 @@ const App = {
       }
     }
 
+    // Mostrar/ocultar campo de can_trigger_evacuation (solo superadmin puede cambiar)
+    const canTriggerGroup = document.getElementById('ufCanTriggerEvacGroup');
+    if (canTriggerGroup) canTriggerGroup.style.display = this.isSuperAdmin() ? '' : 'none';
+
     if (userId) {
       title.innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Usuario';
       usernameInput.disabled = true;
@@ -1036,17 +1083,46 @@ const App = {
         const u = data.user;
         document.getElementById('userFormId').value = u.id;
         usernameInput.value = u.username;
-        document.getElementById('ufFullName').value = u.full_name;
-        document.getElementById('ufRole').value = u.role;
+        document.getElementById('ufFullName').value = u.full_name || '';
+        document.getElementById('ufRole').value = u.role || 'user';
         document.getElementById('ufActive').value = String(u.active);
+        document.getElementById('ufPhone').value = u.phone || '';
+        document.getElementById('ufEmail').value = u.email || '';
+        document.getElementById('ufDni').value = u.dni || '';
+        document.getElementById('ufJobLevel').value = u.job_level || '';
+        document.getElementById('ufJobTitle').value = u.job_title || '';
+        document.getElementById('ufDepartment').value = u.department || '';
+        document.getElementById('ufSite').value = u.site || '';
+        document.getElementById('ufBuilding').value = u.building || '';
+        document.getElementById('ufCanReceiveVisits').value = String(u.can_receive_visits !== false);
+        document.getElementById('ufCanTriggerEvac').value = String(u.can_trigger_evacuation === true);
       }).catch(() => this.toast('Error al cargar usuario', 'danger'));
     } else {
       title.innerHTML = '<i class="bi bi-person-plus me-2"></i>Nuevo Usuario';
       usernameInput.disabled = false;
       pwGroup.classList.remove('d-none');
       activeGroup.classList.add('d-none');
+      document.getElementById('ufCanReceiveVisits').value = 'true';
+      document.getElementById('ufCanTriggerEvac').value = 'false';
     }
     modal.show();
+  },
+
+  _collectUserFormData() {
+    return {
+      full_name: document.getElementById('ufFullName').value.trim(),
+      phone: document.getElementById('ufPhone').value.trim(),
+      email: document.getElementById('ufEmail').value.trim(),
+      dni: document.getElementById('ufDni').value.trim(),
+      job_level: document.getElementById('ufJobLevel').value || null,
+      job_title: document.getElementById('ufJobTitle').value.trim(),
+      department: document.getElementById('ufDepartment').value || null,
+      site: document.getElementById('ufSite').value || null,
+      building: document.getElementById('ufBuilding').value.trim(),
+      can_receive_visits: document.getElementById('ufCanReceiveVisits').value === 'true',
+      can_trigger_evacuation: document.getElementById('ufCanTriggerEvac').value === 'true',
+      role: document.getElementById('ufRole').value,
+    };
   },
 
   async handleUserSave() {
@@ -1056,11 +1132,11 @@ const App = {
 
     try {
       if (id) {
-        await API.updateUser(id, {
-          full_name: document.getElementById('ufFullName').value.trim(),
-          role: document.getElementById('ufRole').value,
+        const updateData = {
+          ...this._collectUserFormData(),
           active: document.getElementById('ufActive').value === 'true',
-        });
+        };
+        await API.updateUser(id, updateData);
         this.toast('Usuario actualizado', 'success');
       } else {
         const password = document.getElementById('ufPassword').value;
@@ -1072,8 +1148,7 @@ const App = {
         await API.createUser({
           username: document.getElementById('ufUsername').value.trim(),
           password,
-          full_name: document.getElementById('ufFullName').value.trim(),
-          role: document.getElementById('ufRole').value,
+          ...this._collectUserFormData(),
         });
         this.toast('Usuario creado', 'success');
       }
@@ -1296,6 +1371,215 @@ const App = {
   formatTime(date) {
     if (!date) return '';
     return new Date(date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  },
+
+  // ─── MÓDULO EVACUACIÓN ─────────────────────────────────────────────────────
+
+  async loadEvacuationPage() {
+    await Promise.all([this.loadActiveEvacuation(), this.loadPresentNow(), this.loadEvacuationHistory()]);
+  },
+
+  async loadActiveEvacuation() {
+    try {
+      const data = await API.getActiveEvacuation();
+      const banner = document.getElementById('evacuationActiveBanner');
+      const info = document.getElementById('evacuationBannerInfo');
+      const btnTrigger = document.getElementById('btnTriggerEvacuation');
+      if (data.event) {
+        banner?.classList.remove('d-none');
+        if (info) info.textContent = `Activada por ${data.event.triggeredBy?.full_name || '—'} a las ${new Date(data.event.triggered_at).toLocaleString('es-ES')} · Canal: ${data.event.channel_used}`;
+        if (btnTrigger) { btnTrigger.disabled = true; btnTrigger.textContent = 'EVACUACIÓN ACTIVA'; }
+      } else {
+        banner?.classList.add('d-none');
+        if (btnTrigger) { btnTrigger.disabled = false; btnTrigger.innerHTML = '<i class="bi bi-bell-fill me-2"></i>ACTIVAR ALARMA'; }
+      }
+      const mv = document.getElementById('metricVisitors');
+      const me = document.getElementById('metricEmployees');
+      const mt = document.getElementById('metricTotal');
+      if (mv) mv.textContent = data.metrics?.present_visitors ?? '—';
+      if (me) me.textContent = data.metrics?.present_employees ?? '—';
+      if (mt) mt.textContent = (data.metrics?.present_visitors || 0) + (data.metrics?.present_employees || 0);
+    } catch { /* silencioso */ }
+  },
+
+  async loadPresentNow() {
+    try {
+      const site = document.getElementById('filterPresenceSite')?.value || '';
+      const building = document.getElementById('filterPresenceBuilding')?.value || '';
+      const data = await API.getPresentNow({ site, building });
+
+      const mv = document.getElementById('metricVisitors');
+      const me = document.getElementById('metricEmployees');
+      const mt = document.getElementById('metricTotal');
+      const tvc = document.getElementById('tabVisitorCount');
+      const tec = document.getElementById('tabEmployeeCount');
+      if (mv) mv.textContent = data.visitors_count;
+      if (me) me.textContent = data.employees_count;
+      if (mt) mt.textContent = data.total;
+      if (tvc) tvc.textContent = data.visitors_count;
+      if (tec) tec.textContent = data.employees_count;
+
+      const visitorsBody = document.getElementById('presentVisitorsTable');
+      if (visitorsBody) {
+        if (!data.visitors.length) {
+          visitorsBody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Sin visitantes en planta</td></tr>';
+        } else {
+          visitorsBody.innerHTML = data.visitors.map((v) => `<tr>
+            <td>${this.esc(v.visitor_name)}</td>
+            <td class="d-none d-md-table-cell">${this.esc(v.destination)}</td>
+            <td class="d-none d-md-table-cell">${this.esc(v.visitor_phone || '—')}</td>
+            <td class="d-none d-lg-table-cell">${this.esc(v.site || '—')}</td>
+            <td><small>${v.check_in ? new Date(v.check_in).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '—'}</small></td>
+          </tr>`).join('');
+        }
+      }
+
+      const employeesBody = document.getElementById('presentEmployeesTable');
+      if (employeesBody) {
+        if (!data.employees.length) {
+          employeesBody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Sin empleados marcados como presentes</td></tr>';
+        } else {
+          employeesBody.innerHTML = data.employees.map((e) => `<tr>
+            <td>${this.esc(e.full_name)}</td>
+            <td class="d-none d-md-table-cell">${this.esc(e.department || '—')}</td>
+            <td class="d-none d-md-table-cell">${this.esc(e.phone || '—')}</td>
+            <td class="d-none d-lg-table-cell">${this.esc(e.site || '—')}</td>
+          </tr>`).join('');
+        }
+      }
+    } catch (err) {
+      this.toast('Error al cargar presencia', 'danger');
+    }
+  },
+
+  async loadEvacuationHistory() {
+    try {
+      const data = await API.getEvacuationHistory();
+      const tbody = document.getElementById('evacuationHistoryTable');
+      if (!tbody) return;
+      if (!data.events.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Sin evacuaciones registradas</td></tr>';
+        return;
+      }
+      const statusBadge = (s) => s === 'active' ? '<span class="badge bg-danger">Activa</span>' : '<span class="badge bg-secondary">Cerrada</span>';
+      tbody.innerHTML = data.events.map((ev) => `<tr>
+        <td>#${ev.id}</td>
+        <td>${statusBadge(ev.status)}</td>
+        <td>${this.esc(ev.channel_used)}</td>
+        <td>${this.esc(ev.triggeredBy?.full_name || '—')}</td>
+        <td><small>${new Date(ev.triggered_at).toLocaleString('es-ES')}</small></td>
+        <td><small>${ev.closed_at ? new Date(ev.closed_at).toLocaleString('es-ES') : '—'}</small></td>
+        <td>
+          <button class="btn btn-outline-secondary btn-sm" title="Descargar recuento CSV" onclick="API.exportRollcallCSV(${ev.id}).catch(()=>App.toast('Error','danger'))">
+            <i class="bi bi-download"></i>
+          </button>
+          ${ev.status === 'active' ? `<button class="btn btn-danger btn-sm ms-1" onclick="App.handleCloseEvacuationById(${ev.id})">Cerrar</button>` : ''}
+        </td>
+      </tr>`).join('');
+    } catch { /* silencioso */ }
+  },
+
+  showEvacuationConfirm() {
+    new bootstrap.Modal(document.getElementById('evacuationConfirmModal')).show();
+  },
+
+  async handleTriggerEvacuation() {
+    const btn = document.getElementById('confirmEvacuationBtn');
+    const spinner = document.getElementById('evacuationSpinner');
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    try {
+      const channel = document.getElementById('evacuationChannel').value;
+      const message = document.getElementById('evacuationMessage').value.trim();
+      const data = await API.triggerEvacuation({ channel, message: message || undefined });
+      bootstrap.Modal.getInstance(document.getElementById('evacuationConfirmModal')).hide();
+      this.toast(`Evacuación activada. Enviados: ${data.stats?.sent || 0}, Fallidos: ${data.stats?.failed || 0}`, 'warning');
+      this.loadEvacuationPage();
+    } catch (err) {
+      this.toast(err.error || 'Error al activar evacuación', 'danger');
+    } finally {
+      btn.disabled = false;
+      spinner.classList.add('d-none');
+    }
+  },
+
+  async handleCloseEvacuation() {
+    try {
+      const data = await API.getActiveEvacuation();
+      if (!data.event) { this.toast('No hay evacuación activa', 'info'); return; }
+      if (!confirm('¿Confirmas el cierre de la evacuación? Todos los empleados han sido contabilizados.')) return;
+      await API.closeEvacuation(data.event.id);
+      this.toast('Evacuación cerrada correctamente', 'success');
+      this.loadEvacuationPage();
+    } catch (err) {
+      this.toast(err.error || 'Error al cerrar evacuación', 'danger');
+    }
+  },
+
+  async handleCloseEvacuationById(id) {
+    if (!confirm('¿Confirmas el cierre de esta evacuación?')) return;
+    try {
+      await API.closeEvacuation(id);
+      this.toast('Evacuación cerrada', 'success');
+      this.loadEvacuationPage();
+    } catch (err) {
+      this.toast(err.error || 'Error al cerrar evacuación', 'danger');
+    }
+  },
+
+  // ─── MÓDULO INTEGRACIONES ───────────────────────────────────────────────────
+
+  async loadIntegrationsPage() {
+    try {
+      const data = await API.getIntegrationsStatus();
+      const statusEl = document.getElementById('integrationStatus');
+      if (statusEl) {
+        const prov = data.messaging;
+        const badge = prov.active
+          ? `<span class="badge bg-success">Twilio activo</span>`
+          : `<span class="badge bg-warning text-dark">Mock (sin envío real)</span>`;
+        statusEl.innerHTML = `
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <i class="bi bi-broadcast fs-3 ${prov.active ? 'text-success' : 'text-warning'}"></i>
+            <div>
+              <div class="fw-semibold">Mensajería SMS/WhatsApp</div>
+              ${badge}
+              ${prov.reason ? `<div class="small text-muted mt-1">${this.esc(prov.reason)}</div>` : ''}
+            </div>
+          </div>
+          <div class="small text-muted">
+            <div><i class="bi bi-${data.api_key_configured ? 'check-circle text-success' : 'x-circle text-danger'} me-1"></i>API Key de integración: ${data.api_key_configured ? 'Configurada' : 'No configurada (INTEGRATION_API_KEY)'}</div>
+          </div>`;
+      }
+      const baseUrl = document.getElementById('integrationBaseUrl');
+      if (baseUrl) baseUrl.textContent = `${window.location.origin}/api/integrations/`;
+    } catch (err) {
+      this.toast('Error al cargar estado de integraciones', 'warning');
+    }
+  },
+
+  async handleTestNotification(e) {
+    e.preventDefault();
+    const spinner = document.getElementById('testNotifSpinner');
+    const resultEl = document.getElementById('testNotifResult');
+    spinner.classList.remove('d-none');
+    resultEl.classList.add('d-none');
+    try {
+      const channel = document.getElementById('testNotifChannel').value;
+      const to = document.getElementById('testNotifTo').value.trim();
+      const message = document.getElementById('testNotifMessage').value.trim();
+      if (!to || !message) { this.toast('Completa todos los campos', 'warning'); return; }
+      const data = await API.testIntegrationNotify({ channel, to, message });
+      resultEl.className = 'alert alert-success mt-3';
+      resultEl.innerHTML = `<i class="bi bi-check-circle me-2"></i>Mensaje enviado. Estado: <strong>${data.result?.status || 'ok'}</strong>`;
+      resultEl.classList.remove('d-none');
+    } catch (err) {
+      resultEl.className = 'alert alert-danger mt-3';
+      resultEl.textContent = err.error || 'Error al enviar notificación de prueba';
+      resultEl.classList.remove('d-none');
+    } finally {
+      spinner.classList.add('d-none');
+    }
   },
 
   esc(str) {

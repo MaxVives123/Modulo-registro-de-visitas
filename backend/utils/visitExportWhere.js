@@ -1,14 +1,9 @@
 const { Op } = require('sequelize');
 
-/**
- * Mismos filtros que listado de visitas / PDF (búsqueda, estado, fechas, destino).
- */
 function buildVisitExportWhere(query) {
   const where = {};
 
-  if (query.status) {
-    where.status = query.status;
-  }
+  if (query.status) where.status = query.status;
 
   if (query.search) {
     const s = `%${query.search}%`;
@@ -21,11 +16,16 @@ function buildVisitExportWhere(query) {
     ];
   }
 
+  if (query.vehicle_plate) {
+    where.vehicle_plate = { [Op.iLike]: `%${query.vehicle_plate}%` };
+  }
+
+  if (query.site) where.site = query.site;
+  if (query.building) where.building = query.building;
+
   if (query.date_from || query.date_to) {
     where.created_at = {};
-    if (query.date_from) {
-      where.created_at[Op.gte] = new Date(query.date_from);
-    }
+    if (query.date_from) where.created_at[Op.gte] = new Date(query.date_from);
     if (query.date_to) {
       const dt = new Date(query.date_to);
       dt.setHours(23, 59, 59, 999);
@@ -33,9 +33,7 @@ function buildVisitExportWhere(query) {
     }
   }
 
-  if (query.destination) {
-    where.destination = query.destination;
-  }
+  if (query.destination) where.destination = query.destination;
 
   return where;
 }

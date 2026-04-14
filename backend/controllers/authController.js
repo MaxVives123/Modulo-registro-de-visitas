@@ -10,6 +10,7 @@ function buildToken(user, companyId) {
       role: user.role,
       full_name: user.full_name,
       company_id: companyId ?? null,
+      can_trigger_evacuation: user.can_trigger_evacuation || false,
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' },
