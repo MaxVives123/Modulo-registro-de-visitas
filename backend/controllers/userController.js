@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 
 const USER_ATTRS = [
   'id', 'username', 'full_name', 'role', 'company_id', 'active',
-  'phone', 'email', 'dni', 'job_level', 'job_title', 'department',
+  'phone', 'email', 'job_level', 'job_title', 'department',
   'site', 'building', 'can_receive_visits', 'can_trigger_evacuation',
   'is_present', 'last_access_at', 'createdAt',
 ];
@@ -49,7 +49,7 @@ async function create(req, res, next) {
   try {
     const {
       username, password, full_name, role,
-      phone, email, dni, job_level, job_title, department,
+      phone, email, job_level, job_title, department,
       site, building, can_receive_visits, can_trigger_evacuation,
     } = req.body;
     const callerRole = req.user.role;
@@ -61,9 +61,10 @@ async function create(req, res, next) {
       companyId = req.user.company_id;
     }
 
+    // Solo superadmin puede asignar roles distintos de empleado estándar
     let assignedRole = role || 'user';
     if (!isSuperAdmin(callerRole)) {
-      if (!['user', 'admin_empresa'].includes(assignedRole)) assignedRole = 'user';
+      assignedRole = 'user';
     }
 
     const existing = await User.findOne({ where: { username } });
@@ -81,7 +82,6 @@ async function create(req, res, next) {
       active: true,
       phone: phone || null,
       email: email || null,
-      dni: dni || null,
       job_level: job_level || null,
       job_title: job_title || null,
       department: department || null,
@@ -108,16 +108,20 @@ async function update(req, res, next) {
 
     const updates = {};
     const allowed = [
-      'full_name', 'phone', 'email', 'dni', 'job_level', 'job_title',
+      'full_name', 'phone', 'email', 'job_level', 'job_title',
       'department', 'site', 'building', 'can_receive_visits',
     ];
     allowed.forEach((f) => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 
     if (req.body.role !== undefined) {
-      if (!isSuperAdmin(req.user.role) && isSuperAdmin(req.body.role)) {
-        return res.status(403).json({ error: 'No puedes asignar ese rol' });
+      if (!isSuperAdmin(req.user.role)) {
+        if (isSuperAdmin(req.body.role)) {
+          return res.status(403).json({ error: 'No puedes asignar ese rol' });
+        }
+        // Admin de empresa no modifica roles (solo crea empleados con rol user)
+      } else {
+        updates.role = req.body.role;
       }
-      updates.role = req.body.role;
     }
 
     if (req.body.active !== undefined) {

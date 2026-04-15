@@ -235,12 +235,12 @@ async function getRollcall(req, res, next) {
     const [visitors, employees, notifications] = await Promise.all([
       Visit.findAll({
         where: { company_id: cid, status: 'checked_in' },
-        attributes: ['id', 'visitor_name', 'visitor_document', 'visitor_company', 'visitor_phone', 'destination', 'site', 'building', 'check_in'],
+        attributes: ['id', 'visitor_name', 'visitor_company', 'visitor_phone', 'destination', 'site', 'building', 'check_in'],
         order: [['check_in', 'ASC']],
       }),
       User.findAll({
         where: { company_id: cid, active: true, is_present: true },
-        attributes: ['id', 'full_name', 'dni', 'phone', 'department', 'job_title', 'site', 'building'],
+        attributes: ['id', 'full_name', 'phone', 'department', 'job_title', 'site', 'building', 'last_access_at'],
         order: [['full_name', 'ASC']],
       }),
       EvacuationNotification.findAll({ where: { event_id: event.id } }),
@@ -259,12 +259,12 @@ async function getRollcall(req, res, next) {
 
 function _exportRollcallCSV(res, event, visitors, employees) {
   const rows = [];
-  rows.push(['Tipo', 'Nombre', 'Identificación', 'Teléfono', 'Destino/Dpto', 'Sede', 'Edificio', 'Hora entrada']);
+  rows.push(['Tipo', 'Nombre', 'Empresa o departamento', 'Teléfono', 'Destino/Dpto', 'Sede', 'Edificio', 'Hora entrada']);
   visitors.forEach((v) => {
-    rows.push(['Visitante', v.visitor_name, v.visitor_document || '', v.visitor_phone || '', v.destination, v.site || '', v.building || '', v.check_in ? new Date(v.check_in).toLocaleString('es-ES') : '']);
+    rows.push(['Visitante', v.visitor_name, v.visitor_company || '', v.visitor_phone || '', v.destination, v.site || '', v.building || '', v.check_in ? new Date(v.check_in).toLocaleString('es-ES') : '']);
   });
   employees.forEach((e) => {
-    rows.push(['Empleado', e.full_name, e.dni || '', e.phone || '', e.department || '', e.site || '', e.building || '', '']);
+    rows.push(['Empleado', e.full_name, e.job_title || '', e.phone || '', e.department || '', e.site || '', e.building || '', e.last_access_at ? new Date(e.last_access_at).toLocaleString('es-ES') : '']);
   });
   const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -291,12 +291,12 @@ async function presentNow(req, res, next) {
     const [visitors, employees] = await Promise.all([
       Visit.findAll({
         where: visitorWhere,
-        attributes: ['id', 'visitor_name', 'visitor_document', 'visitor_company', 'visitor_phone', 'destination', 'site', 'building', 'check_in'],
+        attributes: ['id', 'visitor_name', 'visitor_company', 'visitor_phone', 'destination', 'site', 'building', 'check_in'],
         order: [['check_in', 'ASC']],
       }),
       User.findAll({
         where: employeeWhere,
-        attributes: ['id', 'full_name', 'dni', 'phone', 'department', 'job_title', 'site', 'building', 'last_access_at'],
+        attributes: ['id', 'full_name', 'phone', 'department', 'job_title', 'site', 'building', 'last_access_at'],
         order: [['full_name', 'ASC']],
       }),
     ]);

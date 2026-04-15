@@ -37,6 +37,7 @@ const App = {
     document.getElementById('notifBell')?.addEventListener('click', () => this.loadNotifications());
     document.getElementById('btnNewUser')?.addEventListener('click', () => this.showUserForm());
     document.getElementById('userFormSaveBtn')?.addEventListener('click', () => this.handleUserSave());
+    document.getElementById('btnNewPlatformUser')?.addEventListener('click', () => this.showUserForm(null, { fromPlatform: true }));
     document.getElementById('cpSaveBtn')?.addEventListener('click', () => this.handleChangePassword());
     document.getElementById('btnNewCompany')?.addEventListener('click', () => this.showCompanyForm());
     document.getElementById('companyFormSaveBtn')?.addEventListener('click', () => this.handleCompanySave());
@@ -109,8 +110,11 @@ const App = {
 
     // Empresas: solo superadmin
     document.getElementById('sidebarCompaniesItem')?.classList.toggle('d-none', !isSA);
-    // Usuarios: superadmin y admin_empresa
+    // Empleados: superadmin y admin_empresa
     document.getElementById('sidebarUsersItem')?.classList.toggle('d-none', !canUsers);
+    // Usuarios (acceso plataforma): solo administrador de empresa (no superadmin global)
+    const showPlatformUsers = this.isCompanyAdmin() && !isSA;
+    document.getElementById('sidebarPlatformUsersItem')?.classList.toggle('d-none', !showPlatformUsers);
     // Evacuación: admin o quien tenga can_trigger_evacuation
     const canEvac = isSA || this.isCompanyAdmin() || user.can_trigger_evacuation;
     document.getElementById('sidebarEvacuationItem')?.classList.toggle('d-none', !canEvac);
@@ -127,7 +131,7 @@ const App = {
       companyBadge?.classList.add('d-none');
     }
 
-    // Etiqueta empresa en panel de usuarios
+    // Etiqueta empresa en panel de empleados
     const usersLabel = document.getElementById('usersCompanyLabel');
     if (usersLabel) {
       if (!isSA && user.company_name) {
@@ -136,6 +140,19 @@ const App = {
       } else {
         usersLabel.classList.add('d-none');
       }
+    }
+    const platformUsersLabel = document.getElementById('platformUsersCompanyLabel');
+    if (platformUsersLabel) {
+      if (!isSA && user.company_name) {
+        platformUsersLabel.textContent = user.company_name;
+        platformUsersLabel.classList.remove('d-none');
+      } else {
+        platformUsersLabel.classList.add('d-none');
+      }
+    }
+    const employeesPageHint = document.getElementById('employeesPageHint');
+    if (employeesPageHint) {
+      employeesPageHint.classList.toggle('d-none', isSA);
     }
     this.startNotifPolling();
   },
@@ -249,7 +266,8 @@ const App = {
       dashboard: 'Dashboard',
       visits: 'Lista de Visitas',
       'new-visit': 'Nueva Visita',
-      users: 'Gestión de Usuarios',
+      users: 'Gestión de Empleados',
+      'platform-users': 'Usuarios de la plataforma',
       companies: 'Gestión de Empresas',
       evacuation: 'Evacuación',
       integrations: 'Integraciones',
@@ -278,6 +296,10 @@ const App = {
       case 'users':
         document.getElementById('pageUsers').classList.remove('d-none');
         this.loadUsers();
+        break;
+      case 'platform-users':
+        document.getElementById('pagePlatformUsers').classList.remove('d-none');
+        this.loadPlatformUsers();
         break;
       case 'companies':
         document.getElementById('pageCompanies').classList.remove('d-none');
@@ -357,7 +379,6 @@ const App = {
       const v = data.visit;
       document.getElementById('visitId').value = v.id;
       document.getElementById('vName').value = v.visitor_name || '';
-      document.getElementById('vDocument').value = v.visitor_document || '';
       document.getElementById('vCompany').value = v.visitor_company || '';
       document.getElementById('vEmail').value = v.visitor_email || '';
       document.getElementById('vPhone').value = v.visitor_phone || '';
@@ -432,7 +453,6 @@ const App = {
     const companyIdRaw = document.getElementById('vCompanyId').value;
     const data = {
       visitor_name: document.getElementById('vName').value.trim(),
-      visitor_document: document.getElementById('vDocument').value.trim(),
       visitor_company: document.getElementById('vCompany').value.trim(),
       visitor_email: document.getElementById('vEmail').value.trim(),
       visitor_phone: document.getElementById('vPhone').value.trim(),
@@ -448,7 +468,7 @@ const App = {
       notes: document.getElementById('vNotes').value.trim(),
     };
 
-    if (!data.visitor_name || !data.visitor_document || !data.destination || !data.purpose) {
+    if (!data.visitor_name || !data.destination || !data.purpose) {
       this.setVisitFormError('Completa todos los campos obligatorios', 'danger');
       return;
     }
@@ -639,7 +659,7 @@ const App = {
         <td><small class="text-muted">#${v.id}</small></td>
         <td>
           <strong>${this.esc(v.visitor_name)}</strong><br>
-          <small class="text-muted">${this.esc(v.visitor_document)}</small>
+          <small class="text-muted">${this.esc(v.visitor_company || v.visitor_email || '—')}</small>
           ${v.vehicle_plate ? `<br><span class="badge bg-warning text-dark" title="Matrícula"><i class="bi bi-car-front"></i> ${this.esc(v.vehicle_plate)}</span>` : ''}
         </td>
         <td class="d-none d-md-table-cell">${this.esc(v.visitor_company || '—')}</td>
@@ -772,7 +792,6 @@ const App = {
       document.getElementById('visitDetailBody').innerHTML = `
         <div class="detail-grid">
           <div class="detail-item"><label>Visitante</label><span>${this.esc(v.visitor_name)}</span></div>
-          <div class="detail-item"><label>Documento</label><span>${this.esc(v.visitor_document)}</span></div>
           <div class="detail-item"><label>Empresa visitante</label><span>${this.esc(v.visitor_company || 'N/A')}</span></div>
           <div class="detail-item"><label>Email visitante</label><span>${this.esc(v.visitor_email || 'N/A')}</span></div>
           <div class="detail-item"><label>Teléfono</label><span>${this.esc(v.visitor_phone || 'N/A')}</span></div>
@@ -877,8 +896,8 @@ const App = {
           </div>
           <div class="credential-body">
             <div class="credential-row"><span class="label">Visitante:</span><span class="value">${this.esc(v.visitor_name)}</span></div>
-            <div class="credential-row"><span class="label">Documento:</span><span class="value">${this.esc(v.visitor_document)}</span></div>
             ${v.visitor_company ? `<div class="credential-row"><span class="label">Empresa:</span><span class="value">${this.esc(v.visitor_company)}</span></div>` : ''}
+            ${v.host_name ? `<div class="credential-row"><span class="label">Visita a:</span><span class="value">${this.esc(v.host_name)}</span></div>` : ''}
             <div class="credential-row"><span class="label">Destino:</span><span class="value">${this.esc(v.destination)}</span></div>
             <div class="credential-row"><span class="label">Motivo:</span><span class="value">${this.esc(v.purpose)}</span></div>
             <div class="credential-row"><span class="label">Fecha:</span><span class="value">${checkInDate.toLocaleDateString('es-ES')}</span></div>
@@ -1009,6 +1028,11 @@ const App = {
   },
 
   // ===== USERS CRUD =====
+  _reloadUserManagementLists() {
+    if (this.currentPage === 'users') this.loadUsers();
+    if (this.currentPage === 'platform-users') this.loadPlatformUsers();
+  },
+
   async loadUsers() {
     const tbody = document.getElementById('usersTable');
     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
@@ -1016,12 +1040,25 @@ const App = {
       const data = await API.getUsers();
       this.renderUsersTable(data.users);
     } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar empleados</td></tr>';
+    }
+  },
+
+  async loadPlatformUsers() {
+    const tbody = document.getElementById('platformUsersTable');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    try {
+      const data = await API.getUsers();
+      this.renderPlatformUsersTable(data.users);
+    } catch (err) {
       tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar usuarios</td></tr>';
     }
   },
 
-  renderUsersTable(users) {
-    const tbody = document.getElementById('usersTable');
+  renderPlatformUsersTable(users) {
+    const tbody = document.getElementById('platformUsersTable');
+    if (!tbody) return;
     if (!users.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay usuarios</td></tr>';
       return;
@@ -1029,18 +1066,16 @@ const App = {
     tbody.innerHTML = users.map((u) => `
       <tr class="${!u.active ? 'table-secondary' : ''}">
         <td><small class="text-muted">#${u.id}</small></td>
-        <td><strong>${this.esc(u.username)}</strong>${u.email ? `<br><small class="text-muted">${this.esc(u.email)}</small>` : ''}</td>
-        <td>${this.esc(u.full_name)}${u.job_title ? `<br><small class="text-muted">${this.esc(u.job_title)}</small>` : ''}</td>
+        <td><strong>${this.esc(u.username)}</strong></td>
+        <td>${this.esc(u.full_name)}</td>
         <td>
-          <span class="badge ${{ superadmin: 'bg-danger', admin: 'bg-primary', admin_empresa: 'bg-warning text-dark', user: 'bg-secondary' }[u.role] || 'bg-secondary'}">${{ superadmin: 'Superadmin', admin: 'Admin', admin_empresa: 'Admin Empresa', user: 'Usuario' }[u.role] || u.role}</span>
-          ${u.can_trigger_evacuation ? '<span class="badge bg-danger ms-1" title="Puede activar evacuación"><i class="bi bi-exclamation-triangle"></i></span>' : ''}
-          ${!u.can_receive_visits ? '<span class="badge bg-secondary ms-1" title="No recibe visitas"><i class="bi bi-slash-circle"></i></span>' : ''}
+          <span class="badge ${{ superadmin: 'bg-danger', admin: 'bg-primary', admin_empresa: 'bg-warning text-dark', user: 'bg-secondary' }[u.role] || 'bg-secondary'}">${{ superadmin: 'Superadmin', admin: 'Admin', admin_empresa: 'Admin empresa', user: 'Empleado' }[u.role] || u.role}</span>
         </td>
         <td><span class="badge ${u.active ? 'bg-success' : 'bg-danger'}">${u.active ? 'Activo' : 'Inactivo'}</span></td>
         <td class="d-none d-md-table-cell"><small>${this.formatDateTime(u.createdAt)}</small></td>
         <td>
           <div class="d-flex gap-1 flex-wrap">
-            <button class="btn btn-outline-primary btn-action" title="Editar" onclick="App.showUserForm(${u.id})"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-outline-primary btn-action" title="Editar" onclick="App.showUserForm(${u.id}, { fromPlatform: true })"><i class="bi bi-pencil"></i></button>
             <button class="btn btn-outline-warning btn-action" title="Cambiar contraseña" onclick="App.showChangePassword(${u.id})"><i class="bi bi-key"></i></button>
             ${u.active ? `<button class="btn btn-outline-danger btn-action" title="Desactivar" onclick="App.deactivateUser(${u.id}, '${this.esc(u.username)}')"><i class="bi bi-person-slash"></i></button>` : ''}
           </div>
@@ -1049,7 +1084,43 @@ const App = {
     `).join('');
   },
 
-  showUserForm(userId) {
+  renderUsersTable(users) {
+    const tbody = document.getElementById('usersTable');
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay empleados</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map((u) => `
+      <tr class="${!u.active ? 'table-secondary' : ''}">
+        <td><small class="text-muted">#${u.id}</small></td>
+        <td><strong>${this.esc(u.username)}</strong>${u.email ? `<br><small class="text-muted">${this.esc(u.email)}</small>` : ''}</td>
+        <td>${this.esc(u.full_name)}${u.job_title ? `<br><small class="text-muted">${this.esc(u.job_title)}</small>` : ''}</td>
+        <td>
+          <span class="badge ${{ superadmin: 'bg-danger', admin: 'bg-primary', admin_empresa: 'bg-warning text-dark', user: 'bg-secondary' }[u.role] || 'bg-secondary'}">${{ superadmin: 'Superadmin', admin: 'Admin', admin_empresa: 'Admin empresa', user: 'Empleado' }[u.role] || u.role}</span>
+          ${u.can_trigger_evacuation ? '<span class="badge bg-danger ms-1" title="Puede activar evacuación"><i class="bi bi-exclamation-triangle"></i></span>' : ''}
+          ${!u.can_receive_visits ? '<span class="badge bg-secondary ms-1" title="No recibe visitas"><i class="bi bi-slash-circle"></i></span>' : ''}
+        </td>
+        <td><span class="badge ${u.active ? 'bg-success' : 'bg-danger'}">${u.active ? 'Activo' : 'Inactivo'}</span></td>
+        <td class="d-none d-md-table-cell"><small>${this.formatDateTime(u.createdAt)}</small></td>
+        <td>
+          <div class="d-flex gap-1 flex-wrap">
+            <button class="btn btn-outline-primary btn-action" title="Editar" onclick="App.showUserForm(${u.id}, { fromPlatform: false })"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-outline-warning btn-action" title="Cambiar contraseña" onclick="App.showChangePassword(${u.id})"><i class="bi bi-key"></i></button>
+            ${u.active ? `<button class="btn btn-outline-danger btn-action" title="Desactivar" onclick="App.deactivateUser(${u.id}, '${this.esc(u.username)}')"><i class="bi bi-person-slash"></i></button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  },
+
+  _roleLabelEs(role) {
+    const m = { superadmin: 'Superadmin', admin: 'Admin global', admin_empresa: 'Administrador empresa', user: 'Empleado' };
+    return m[role] || role;
+  },
+
+  showUserForm(userId, options = {}) {
+    const fromPlatform = options.fromPlatform === true;
+    this._userFormFromPlatform = fromPlatform;
     const modal = new bootstrap.Modal(document.getElementById('userFormModal'));
     const title = document.getElementById('userFormTitle');
     const usernameInput = document.getElementById('ufUsername');
@@ -1057,23 +1128,38 @@ const App = {
     const activeGroup = document.getElementById('ufActiveGroup');
     const errorDiv = document.getElementById('userFormError');
     const roleSelect = document.getElementById('ufRole');
+    const roleGroup = document.getElementById('ufRoleGroup');
+    const roleReadonly = document.getElementById('ufRoleReadonly');
+    const roleLabelEl = document.getElementById('ufRoleLabel');
 
     document.getElementById('userForm').reset();
     document.getElementById('userFormId').value = '';
     errorDiv.classList.add('d-none');
 
-    // Ajustar opciones de rol según quién llama
+    // Ajustar opciones de rol según quién llama (solo superadmin elige rol; admin empresa solo crea empleados)
+    if (roleGroup && roleReadonly && roleLabelEl) {
+      if (this.isSuperAdmin()) {
+        roleGroup.classList.remove('d-none');
+        roleReadonly.classList.add('d-none');
+      } else {
+        roleGroup.classList.add('d-none');
+        if (userId) {
+          roleReadonly.classList.remove('d-none');
+        } else {
+          roleReadonly.classList.add('d-none');
+        }
+      }
+    }
+
     if (roleSelect) {
       if (this.isSuperAdmin()) {
         roleSelect.innerHTML = `
-          <option value="user">Usuario</option>
-          <option value="admin_empresa">Admin Empresa</option>
+          <option value="user">Empleado</option>
+          <option value="admin_empresa">Administrador empresa</option>
           <option value="admin">Admin</option>
           <option value="superadmin">Superadmin</option>`;
       } else {
-        roleSelect.innerHTML = `
-          <option value="user">Usuario</option>
-          <option value="admin_empresa">Admin Empresa</option>`;
+        roleSelect.innerHTML = '<option value="user">Empleado</option>';
       }
     }
 
@@ -1082,7 +1168,9 @@ const App = {
     if (canTriggerGroup) canTriggerGroup.style.display = this.isSuperAdmin() ? '' : 'none';
 
     if (userId) {
-      title.innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Usuario';
+      title.innerHTML = fromPlatform
+        ? '<i class="bi bi-pencil me-2"></i>Editar usuario'
+        : '<i class="bi bi-pencil me-2"></i>Editar empleado';
       usernameInput.disabled = true;
       pwGroup.classList.add('d-none');
       activeGroup.classList.remove('d-none');
@@ -1091,11 +1179,14 @@ const App = {
         document.getElementById('userFormId').value = u.id;
         usernameInput.value = u.username;
         document.getElementById('ufFullName').value = u.full_name || '';
-        document.getElementById('ufRole').value = u.role || 'user';
+        if (this.isSuperAdmin()) {
+          document.getElementById('ufRole').value = u.role || 'user';
+        } else if (roleLabelEl) {
+          roleLabelEl.textContent = this._roleLabelEs(u.role);
+        }
         document.getElementById('ufActive').value = String(u.active);
         document.getElementById('ufPhone').value = u.phone || '';
         document.getElementById('ufEmail').value = u.email || '';
-        document.getElementById('ufDni').value = u.dni || '';
         document.getElementById('ufJobLevel').value = u.job_level || '';
         document.getElementById('ufJobTitle').value = u.job_title || '';
         document.getElementById('ufDepartment').value = u.department || '';
@@ -1105,7 +1196,9 @@ const App = {
         document.getElementById('ufCanTriggerEvac').value = String(u.can_trigger_evacuation === true);
       }).catch(() => this.toast('Error al cargar usuario', 'danger'));
     } else {
-      title.innerHTML = '<i class="bi bi-person-plus me-2"></i>Nuevo Usuario';
+      title.innerHTML = fromPlatform
+        ? '<i class="bi bi-person-badge me-2"></i>Nuevo usuario de plataforma'
+        : '<i class="bi bi-person-plus me-2"></i>Nuevo empleado';
       usernameInput.disabled = false;
       pwGroup.classList.remove('d-none');
       activeGroup.classList.add('d-none');
@@ -1116,11 +1209,11 @@ const App = {
   },
 
   _collectUserFormData() {
+    const role = this.isSuperAdmin() ? document.getElementById('ufRole').value : 'user';
     return {
       full_name: document.getElementById('ufFullName').value.trim(),
       phone: document.getElementById('ufPhone').value.trim(),
       email: document.getElementById('ufEmail').value.trim(),
-      dni: document.getElementById('ufDni').value.trim(),
       job_level: document.getElementById('ufJobLevel').value || null,
       job_title: document.getElementById('ufJobTitle').value.trim(),
       department: document.getElementById('ufDepartment').value || null,
@@ -1128,7 +1221,7 @@ const App = {
       building: document.getElementById('ufBuilding').value.trim(),
       can_receive_visits: document.getElementById('ufCanReceiveVisits').value === 'true',
       can_trigger_evacuation: document.getElementById('ufCanTriggerEvac').value === 'true',
-      role: document.getElementById('ufRole').value,
+      role,
     };
   },
 
@@ -1143,8 +1236,9 @@ const App = {
           ...this._collectUserFormData(),
           active: document.getElementById('ufActive').value === 'true',
         };
+        if (!this.isSuperAdmin()) delete updateData.role;
         await API.updateUser(id, updateData);
-        this.toast('Usuario actualizado', 'success');
+        this.toast(this._userFormFromPlatform ? 'Usuario actualizado' : 'Empleado actualizado', 'success');
       } else {
         const password = document.getElementById('ufPassword').value;
         if (!password || password.length < 8) {
@@ -1157,12 +1251,12 @@ const App = {
           password,
           ...this._collectUserFormData(),
         });
-        this.toast('Usuario creado', 'success');
+        this.toast(this._userFormFromPlatform ? 'Usuario creado' : 'Empleado creado', 'success');
       }
       bootstrap.Modal.getInstance(document.getElementById('userFormModal')).hide();
-      this.loadUsers();
+      this._reloadUserManagementLists();
     } catch (err) {
-      errorDiv.textContent = this.formatApiValidationError(err, 'Error al guardar usuario');
+      errorDiv.textContent = this.formatApiValidationError(err, this._userFormFromPlatform ? 'Error al guardar usuario' : 'Error al guardar empleado');
       errorDiv.classList.remove('d-none');
     }
   },
@@ -1190,6 +1284,7 @@ const App = {
       await API.changeUserPassword(id, password);
       this.toast('Contraseña actualizada', 'success');
       bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+      this._reloadUserManagementLists();
     } catch (err) {
       errorDiv.textContent = this.formatApiValidationError(err, 'Error al cambiar contraseña');
       errorDiv.classList.remove('d-none');
@@ -1197,19 +1292,20 @@ const App = {
   },
 
   async deactivateUser(id, username) {
-    if (!confirm(`¿Desactivar al usuario "${username}"?`)) return;
+    const isPlat = this.currentPage === 'platform-users';
+    if (!confirm(isPlat ? `¿Desactivar el usuario "${username}"?` : `¿Desactivar al empleado "${username}"?`)) return;
     try {
       await API.deleteUser(id);
-      this.toast('Usuario desactivado', 'success');
-      this.loadUsers();
+      this.toast(isPlat ? 'Usuario desactivado' : 'Empleado desactivado', 'success');
+      this._reloadUserManagementLists();
     } catch (err) {
-      this.toast(err.error || 'Error al desactivar usuario', 'danger');
+      this.toast(err.error || (isPlat ? 'Error al desactivar usuario' : 'Error al desactivar empleado'), 'danger');
     }
   },
 
   // ===== COMPANIES =====
   async loadCompaniesForSelect() {
-    if (!this.isSuperAdmin()) return; // no necesario para usuarios de empresa
+    if (!this.isSuperAdmin()) return; // no necesario para empleados de empresa
     try {
       const data = await API.getCompanies({ active: 'true' });
       this._companiesCache = data.companies || [];

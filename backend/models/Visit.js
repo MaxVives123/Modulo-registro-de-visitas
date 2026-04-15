@@ -14,8 +14,7 @@ module.exports = (sequelize) => {
     },
     visitor_document: {
       type: DataTypes.STRING(30),
-      allowNull: false,
-      validate: { len: [3, 30] },
+      allowNull: true,
     },
     visitor_company: {
       type: DataTypes.STRING(100),

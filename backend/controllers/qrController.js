@@ -59,7 +59,6 @@ async function validateQR(req, res, next) {
       visit: {
         id: visit.id,
         visitor_name: visit.visitor_name,
-        visitor_document: visit.visitor_document,
         visitor_company: visit.visitor_company,
         destination: visit.destination,
         purpose: visit.purpose,
@@ -95,7 +94,9 @@ async function checkOutByQR(req, res, next) {
     await visit.update({ status: 'checked_out', check_out: new Date() });
 
     logger.info(`Check-out por QR: visita ${visit.id}`);
-    res.json({ message: 'Salida registrada correctamente', visit });
+    const visitJson = visit.toJSON();
+    delete visitJson.visitor_document;
+    res.json({ message: 'Salida registrada correctamente', visit: visitJson });
   } catch (error) {
     next(error);
   }
@@ -132,8 +133,8 @@ async function getCredentialData(req, res, next) {
       visit: {
         id: visit.id,
         visitor_name: visit.visitor_name,
-        visitor_document: visit.visitor_document,
         visitor_company: visit.visitor_company,
+        host_name: visit.host_name,
         destination: visit.destination,
         purpose: visit.purpose,
         check_in: visit.check_in,

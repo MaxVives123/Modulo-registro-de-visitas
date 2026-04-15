@@ -7,8 +7,7 @@ const visitValidation = {
   create: [
     body('visitor_name').trim().notEmpty().withMessage('El nombre del visitante es obligatorio')
       .isLength({ min: 2, max: 100 }).escape(),
-    body('visitor_document').trim().notEmpty().withMessage('El documento es obligatorio')
-      .isLength({ min: 3, max: 30 }).escape(),
+    body('visitor_document').optional({ checkFalsy: true }).trim().isLength({ max: 30 }).escape(),
     body('visitor_company').optional({ checkFalsy: true }).trim().isLength({ max: 100 }).escape(),
     body('visitor_email').optional({ checkFalsy: true }).trim().isEmail().withMessage('Email inválido').normalizeEmail(),
     body('visitor_phone').optional({ checkFalsy: true }).trim().isLength({ max: 20 }).escape(),
@@ -26,7 +25,7 @@ const visitValidation = {
   update: [
     param('id').isInt({ min: 1 }).withMessage('ID inválido'),
     body('visitor_name').optional().trim().isLength({ min: 2, max: 100 }).escape(),
-    body('visitor_document').optional().trim().isLength({ min: 3, max: 30 }).escape(),
+    body('visitor_document').optional({ checkFalsy: true }).trim().isLength({ max: 30 }).escape(),
     body('visitor_company').optional().trim().isLength({ max: 100 }).escape(),
     body('visitor_email').optional().trim().isEmail().withMessage('Email inválido').normalizeEmail(),
     body('visitor_phone').optional().trim().isLength({ max: 20 }).escape(),
@@ -81,7 +80,6 @@ const userValidation = {
     body('role').optional({ checkFalsy: true }).isIn(['superadmin', 'admin', 'admin_empresa', 'user']).withMessage('Rol inválido'),
     body('phone').optional({ checkFalsy: true }).trim().isLength({ max: 20 }).escape(),
     body('email').optional({ checkFalsy: true }).trim().isEmail().withMessage('Email inválido').normalizeEmail(),
-    body('dni').optional({ checkFalsy: true }).trim().isLength({ max: 30 }).escape(),
     body('job_level').optional({ checkFalsy: true }).isIn(JOB_LEVELS).withMessage('Nivel de cargo inválido'),
     body('job_title').optional({ checkFalsy: true }).trim().isLength({ max: 100 }).escape(),
     body('department').optional({ checkFalsy: true }).isIn(DEPARTMENTS).withMessage('Departamento inválido'),
@@ -97,7 +95,6 @@ const userValidation = {
     body('active').optional().isBoolean(),
     body('phone').optional({ checkFalsy: true }).trim().isLength({ max: 20 }).escape(),
     body('email').optional({ checkFalsy: true }).trim().isEmail().normalizeEmail(),
-    body('dni').optional({ checkFalsy: true }).trim().isLength({ max: 30 }).escape(),
     body('job_level').optional({ checkFalsy: true }).isIn(JOB_LEVELS).withMessage('Nivel de cargo inválido'),
     body('job_title').optional({ checkFalsy: true }).trim().isLength({ max: 100 }).escape(),
     body('department').optional({ checkFalsy: true }).isIn(DEPARTMENTS).withMessage('Departamento inválido'),

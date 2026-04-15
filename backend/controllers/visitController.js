@@ -10,6 +10,9 @@ const { isSuperAdmin } = require('../middleware/auth');
 
 const COMPANY_INCLUDE = { model: Company, as: 'company', attributes: ['id', 'name'] };
 
+/** No exponer documento de identidad en la API (dato sensible). */
+const VISIT_API_ATTRS = { exclude: ['visitor_document'] };
+
 const STATUS_LABELS = {
   pending: 'Pendiente',
   checked_in: 'En instalaciones',
@@ -52,7 +55,6 @@ async function list(req, res, next) {
       const search = `%${req.query.search}%`;
       where[Op.or] = [
         { visitor_name: { [Op.iLike]: search } },
-        { visitor_document: { [Op.iLike]: search } },
         { visitor_company: { [Op.iLike]: search } },
         { destination: { [Op.iLike]: search } },
         { purpose: { [Op.iLike]: search } },
@@ -74,6 +76,7 @@ async function list(req, res, next) {
 
     const { rows: visits, count: total } = await Visit.findAndCountAll({
       where,
+      attributes: VISIT_API_ATTRS,
       include: [
         { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
         COMPANY_INCLUDE,
@@ -96,6 +99,7 @@ async function getById(req, res, next) {
 
     const visit = await Visit.findOne({
       where,
+      attributes: VISIT_API_ATTRS,
       include: [
         { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
         COMPANY_INCLUDE,
@@ -115,7 +119,7 @@ async function create(req, res, next) {
 
     const visit = await Visit.create({
       visitor_name: req.body.visitor_name,
-      visitor_document: req.body.visitor_document,
+      visitor_document: null,
       visitor_company: nullIfEmpty(req.body.visitor_company),
       visitor_email: nullIfEmpty(req.body.visitor_email),
       visitor_phone: nullIfEmpty(req.body.visitor_phone),
@@ -138,6 +142,7 @@ async function create(req, res, next) {
     });
 
     const fullVisit = await Visit.findByPk(visit.id, {
+      attributes: VISIT_API_ATTRS,
       include: [
         { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
         COMPANY_INCLUDE,
@@ -169,7 +174,7 @@ async function update(req, res, next) {
     if (!visit) return res.status(404).json({ error: 'Visita no encontrada' });
 
     const allowedFields = [
-      'visitor_name', 'visitor_document', 'visitor_company',
+      'visitor_name', 'visitor_company',
       'visitor_email', 'visitor_phone', 'destination', 'purpose', 'notes', 'signature',
       'host_name', 'host_email', 'vehicle_plate', 'site', 'building', 'company_id',
     ];
@@ -182,6 +187,7 @@ async function update(req, res, next) {
     await visit.update(updates);
 
     const fullVisit = await Visit.findByPk(visit.id, {
+      attributes: VISIT_API_ATTRS,
       include: [
         { model: User, as: 'creator', attributes: ['id', 'full_name', 'username'] },
         COMPANY_INCLUDE,
@@ -215,7 +221,7 @@ async function checkIn(req, res, next) {
   try {
     const whereCI = { id: req.params.id };
     applyCompanyScope(whereCI, req);
-    const visit = await Visit.findOne({ where: whereCI });
+    const visit = await Visit.findOne({ where: whereCI, attributes: VISIT_API_ATTRS });
 
     if (!visit) return res.status(404).json({ error: 'Visita no encontrada' });
     if (visit.status !== 'pending') return res.status(400).json({ error: 'La visita no está en estado pendiente' });
@@ -232,7 +238,7 @@ async function checkOut(req, res, next) {
   try {
     const whereCO = { id: req.params.id };
     applyCompanyScope(whereCO, req);
-    const visit = await Visit.findOne({ where: whereCO });
+    const visit = await Visit.findOne({ where: whereCO, attributes: VISIT_API_ATTRS });
 
     if (!visit) return res.status(404).json({ error: 'Visita no encontrada' });
     if (visit.status !== 'checked_in') return res.status(400).json({ error: 'La visita no tiene registro de entrada' });
@@ -286,7 +292,7 @@ async function exportCSV(req, res, next) {
     });
 
     const headers = [
-      'ID', 'Visitante', 'Documento', 'Empresa visitante', 'Email', 'Teléfono',
+      'ID', 'Visitante', 'Empresa visitante', 'Email', 'Teléfono',
       'Destino', 'Persona visitada', 'Email visitado', 'Motivo', 'Matrícula',
       'Sede', 'Edificio', 'Empresa destino',
       'Estado', 'Entrada', 'Salida', 'Registrado por', 'Fecha creación',
@@ -295,7 +301,6 @@ async function exportCSV(req, res, next) {
     const rows = visits.map((v) => [
       v.id,
       `"${v.visitor_name}"`,
-      `"${v.visitor_document}"`,
       `"${v.visitor_company || ''}"`,
       v.visitor_email || '',
       v.visitor_phone || '',
@@ -343,7 +348,7 @@ async function exportExcel(req, res, next) {
     const sheet = workbook.addWorksheet('Visitas', { views: [{ state: 'frozen', ySplit: 1 }] });
 
     sheet.addRow([
-      'ID', 'Visitante', 'Documento', 'Empresa visitante', 'Email', 'Teléfono',
+      'ID', 'Visitante', 'Empresa visitante', 'Email', 'Teléfono',
       'Destino', 'Persona visitada', 'Email visitado', 'Motivo', 'Matrícula',
       'Sede', 'Edificio', 'Empresa destino',
       'Estado', 'Entrada', 'Salida', 'Registrado por', 'Fecha creación',
@@ -356,7 +361,7 @@ async function exportExcel(req, res, next) {
     visits.forEach((v) => {
       sheet.addRow([
         v.id,
-        v.visitor_name, v.visitor_document,
+        v.visitor_name,
         v.visitor_company || '', v.visitor_email || '', v.visitor_phone || '',
         v.destination, v.host_name || '', v.host_email || '', v.purpose,
         v.vehicle_plate || '', v.site || '', v.building || '',
@@ -369,7 +374,7 @@ async function exportExcel(req, res, next) {
       ]);
     });
 
-    const widths = [8, 28, 16, 22, 24, 14, 22, 24, 24, 32, 14, 14, 14, 22, 18, 20, 20, 22, 20];
+    const widths = [8, 28, 22, 24, 14, 22, 24, 24, 32, 14, 14, 14, 22, 18, 20, 20, 22, 20];
     sheet.columns.forEach((col, i) => { col.width = widths[i] || 16; });
 
     const dateStr = new Date().toISOString().split('T')[0];

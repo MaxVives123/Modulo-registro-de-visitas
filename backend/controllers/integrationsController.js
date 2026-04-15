@@ -39,7 +39,7 @@ async function notify(req, res, next) {
  * Recibe eventos de control de acceso (badge in/out) y actualiza presencia de empleados.
  *
  * Body: { event_type: 'badge_in'|'badge_out', employee_identifier: string, door?: string, timestamp?: string }
- * employee_identifier puede ser username, email o dni.
+ * employee_identifier puede ser username o email.
  */
 async function accessEvent(req, res, next) {
   try {
@@ -58,7 +58,6 @@ async function accessEvent(req, res, next) {
         [Op.or]: [
           { username: employee_identifier },
           { email: employee_identifier },
-          { dni: employee_identifier },
         ],
         active: true,
       },
@@ -104,11 +103,11 @@ async function presence(req, res, next) {
     const [visitors, employees] = await Promise.all([
       Visit.findAll({
         where: visitorWhere,
-        attributes: ['id', 'visitor_name', 'visitor_document', 'visitor_company', 'visitor_phone', 'destination', 'site', 'building', 'check_in', 'company_id'],
+        attributes: ['id', 'visitor_name', 'visitor_company', 'visitor_phone', 'destination', 'site', 'building', 'check_in', 'company_id'],
       }),
       User.findAll({
         where: employeeWhere,
-        attributes: ['id', 'full_name', 'dni', 'phone', 'department', 'site', 'building', 'last_access_at', 'company_id'],
+        attributes: ['id', 'full_name', 'phone', 'department', 'site', 'building', 'last_access_at', 'company_id'],
       }),
     ]);
 

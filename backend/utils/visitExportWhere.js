@@ -9,7 +9,6 @@ function buildVisitExportWhere(query) {
     const s = `%${query.search}%`;
     where[Op.or] = [
       { visitor_name: { [Op.iLike]: s } },
-      { visitor_document: { [Op.iLike]: s } },
       { visitor_company: { [Op.iLike]: s } },
       { destination: { [Op.iLike]: s } },
       { purpose: { [Op.iLike]: s } },

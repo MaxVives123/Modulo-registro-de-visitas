@@ -58,7 +58,6 @@ async function sendVisitNotification(visit) {
                 <td style="padding:10px 12px;color:#6c757d;width:40%;">Visitante</td>
                 <td style="padding:10px 12px;font-weight:700;color:#212529;">${visit.visitor_name}</td>
               </tr>
-              ${visit.visitor_document ? `<tr><td style="padding:10px 12px;color:#6c757d;">Documento</td><td style="padding:10px 12px;">${visit.visitor_document}</td></tr>` : ''}
               ${visit.visitor_company ? `<tr style="background:#f1f3fe;"><td style="padding:10px 12px;color:#6c757d;">Empresa visitante</td><td style="padding:10px 12px;">${visit.visitor_company}</td></tr>` : ''}
               ${plateRow}
               <tr style="background:#f1f3fe;"><td style="padding:10px 12px;color:#6c757d;">Destino / Dpto.</td><td style="padding:10px 12px;">${visit.destination}</td></tr>

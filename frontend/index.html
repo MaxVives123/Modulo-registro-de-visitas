@@ -134,7 +134,12 @@
         </li>
         <li id="sidebarUsersItem" class="d-none">
           <a href="#" class="sidebar-link" data-page="users">
-            <i class="bi bi-people-fill"></i><span>Usuarios</span>
+            <i class="bi bi-people-fill"></i><span>Empleados</span>
+          </a>
+        </li>
+        <li id="sidebarPlatformUsersItem" class="d-none">
+          <a href="#" class="sidebar-link" data-page="platform-users">
+            <i class="bi bi-person-badge"></i><span>Usuarios</span>
           </a>
         </li>
         <li id="sidebarEvacuationItem" class="d-none">
@@ -297,7 +302,7 @@
                   <label class="form-label small fw-semibold">Buscar</label>
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" id="searchInput" placeholder="Nombre, documento, empresa...">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Nombre, empresa, destino...">
                   </div>
                 </div>
                 <div class="col-6 col-md-2">
@@ -393,80 +398,93 @@
             <div class="card-body">
               <form id="visitForm" novalidate>
                 <input type="hidden" id="visitId">
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label for="vName" class="form-label">Nombre del Visitante <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="vName" required maxlength="100">
-                  </div>
-                  <div class="col-md-6">
-                    <label for="vDocument" class="form-label">Documento de Identidad <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="vDocument" required maxlength="30">
-                  </div>
-                  <!-- Selector empresa: solo visible para superadmin -->
-                  <div class="col-md-6" id="vCompanySelectGroup">
-                    <label for="vCompanyId" class="form-label">Empresa <small class="text-muted">(del sistema)</small></label>
-                    <select class="form-select" id="vCompanyId">
-                      <option value="">— Sin empresa / Particular —</option>
-                    </select>
-                  </div>
-                  <!-- Empresa fija: visible para admin_empresa / user -->
-                  <div class="col-md-6 d-none" id="vCompanyFixedGroup">
-                    <label class="form-label">Empresa</label>
-                    <div class="form-control bg-light d-flex align-items-center gap-2">
-                      <i class="bi bi-building text-primary"></i>
-                      <span id="vCompanyFixed" class="fw-semibold"></span>
+
+                <div class="border rounded-3 p-3 mb-3 bg-light">
+                  <h6 class="text-primary mb-3 pb-2 border-bottom">
+                    <i class="bi bi-person-badge me-2"></i>Persona visitante
+                  </h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="vName" class="form-label">Nombre completo <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="vName" required maxlength="100">
+                    </div>
+                    <!-- Selector empresa: solo visible para superadmin -->
+                    <div class="col-md-6" id="vCompanySelectGroup">
+                      <label for="vCompanyId" class="form-label">Empresa <small class="text-muted">(del sistema)</small></label>
+                      <select class="form-select" id="vCompanyId">
+                        <option value="">— Sin empresa / Particular —</option>
+                      </select>
+                    </div>
+                    <!-- Empresa fija: visible para admin_empresa / user -->
+                    <div class="col-md-6 d-none" id="vCompanyFixedGroup">
+                      <label class="form-label">Empresa</label>
+                      <div class="form-control bg-white d-flex align-items-center gap-2">
+                        <i class="bi bi-building text-primary"></i>
+                        <span id="vCompanyFixed" class="fw-semibold"></span>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="vCompany" class="form-label">Empresa del visitante <small class="text-muted">(texto libre)</small></label>
+                      <input type="text" class="form-control" id="vCompany" maxlength="100" placeholder="Empresa de la que viene el visitante">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="vEmail" class="form-label">Email</label>
+                      <input type="email" class="form-control" id="vEmail">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="vPhone" class="form-label">Teléfono</label>
+                      <input type="text" class="form-control" id="vPhone" maxlength="20">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="vVehiclePlate" class="form-label">Matrícula del vehículo</label>
+                      <input type="text" class="form-control" id="vVehiclePlate" maxlength="20" placeholder="1234-ABC">
                     </div>
                   </div>
-                  <div class="col-md-6">
-                    <label for="vCompany" class="form-label">Empresa del visitante <small class="text-muted">(texto libre)</small></label>
-                    <input type="text" class="form-control" id="vCompany" maxlength="100" placeholder="Empresa de la que viene el visitante">
+                </div>
+
+                <div class="border rounded-3 p-3 mb-3 border-primary border-opacity-25">
+                  <h6 class="text-primary mb-3 pb-2 border-bottom">
+                    <i class="bi bi-people me-2"></i>Persona o área visitada
+                  </h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="vDestination" class="form-label">Destino / Departamento <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="vDestination" required maxlength="100" list="destinationsList">
+                      <datalist id="destinationsList"></datalist>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="vHostName" class="form-label">Nombre de la persona a visitar</label>
+                      <input type="text" class="form-control" id="vHostName" maxlength="100" placeholder="Nombre del empleado o responsable">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="vHostEmail" class="form-label">Email de la persona a visitar <small class="text-muted">(notificación)</small></label>
+                      <input type="email" class="form-control" id="vHostEmail" placeholder="correo@empresa.com">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="vSite" class="form-label">Sede</label>
+                      <select class="form-select" id="vSite">
+                        <option value="">— Sin especificar —</option>
+                        <option value="Barcelona">Barcelona</option>
+                        <option value="Madrid">Madrid</option>
+                        <option value="Londres">Londres</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="vBuilding" class="form-label">Edificio</label>
+                      <input type="text" class="form-control" id="vBuilding" maxlength="50" placeholder="Edificio 1, Edificio 2...">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="vPurpose" class="form-label">Motivo de la visita <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="vPurpose" required maxlength="255">
+                    </div>
+                    <div class="col-12">
+                      <label for="vNotes" class="form-label">Notas internas</label>
+                      <textarea class="form-control" id="vNotes" rows="2" maxlength="500" placeholder="Observaciones opcionales"></textarea>
+                    </div>
                   </div>
-                  <div class="col-md-6">
-                    <label for="vEmail" class="form-label">Email del visitante</label>
-                    <input type="email" class="form-control" id="vEmail">
-                  </div>
-                  <div class="col-md-6">
-                    <label for="vPhone" class="form-label">Teléfono</label>
-                    <input type="text" class="form-control" id="vPhone" maxlength="20">
-                  </div>
-                  <div class="col-md-6">
-                    <label for="vDestination" class="form-label">Destino / Departamento <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="vDestination" required maxlength="100" list="destinationsList">
-                    <datalist id="destinationsList"></datalist>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="vHostName" class="form-label">Nombre de la persona a visitar</label>
-                    <input type="text" class="form-control" id="vHostName" maxlength="100" placeholder="Nombre del empleado/persona visitada">
-                  </div>
-                  <div class="col-md-6">
-                    <label for="vHostEmail" class="form-label">Email de la persona a visitar <small class="text-muted">(recibirá notificación)</small></label>
-                    <input type="email" class="form-control" id="vHostEmail" placeholder="correo@empresa.com">
-                  </div>
-                  <div class="col-md-4">
-                    <label for="vVehiclePlate" class="form-label">Matrícula del vehículo</label>
-                    <input type="text" class="form-control" id="vVehiclePlate" maxlength="20" placeholder="1234-ABC">
-                  </div>
-                  <div class="col-md-4">
-                    <label for="vSite" class="form-label">Sede</label>
-                    <select class="form-select" id="vSite">
-                      <option value="">— Sin especificar —</option>
-                      <option value="Barcelona">Barcelona</option>
-                      <option value="Madrid">Madrid</option>
-                      <option value="Londres">Londres</option>
-                    </select>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="vBuilding" class="form-label">Edificio</label>
-                    <input type="text" class="form-control" id="vBuilding" maxlength="50" placeholder="Edificio 1, Edificio 2...">
-                  </div>
-                  <div class="col-md-6">
-                    <label for="vPurpose" class="form-label">Motivo de la Visita <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="vPurpose" required maxlength="255">
-                  </div>
-                  <div class="col-md-6">
-                    <label for="vNotes" class="form-label">Notas</label>
-                    <textarea class="form-control" id="vNotes" rows="1" maxlength="500"></textarea>
-                  </div>
+                </div>
+
+                <div class="row g-3">
                   <div class="col-12" id="signatureBlock">
                     <label class="form-label">Firma del Visitante</label>
                     <div class="signature-wrapper border rounded bg-white position-relative">
@@ -530,13 +548,17 @@
           </div>
         </div>
 
-        <!-- Users Page (admin only) -->
+        <!-- Empleados (RR.HH. / fichas) — superadmin y admin empresa -->
         <div id="pageUsers" class="page-content d-none">
+          <div class="alert alert-light border small mb-3 py-2 mb-md-3" id="employeesPageHint">
+            <i class="bi bi-info-circle text-primary me-1"></i>
+            <strong>Empleados:</strong> datos de contacto, departamento, sede y permisos (quién puede recibir visitas). Las cuentas de acceso al sistema se gestionan en <strong>Usuarios</strong>.
+          </div>
           <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Gestión de Usuarios <span id="usersCompanyLabel" class="badge bg-primary ms-1 d-none"></span></h6>
+              <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Gestión de Empleados <span id="usersCompanyLabel" class="badge bg-primary ms-1 d-none"></span></h6>
               <button class="btn btn-primary btn-sm" id="btnNewUser">
-                <i class="bi bi-plus-lg me-1"></i>Nuevo Usuario
+                <i class="bi bi-plus-lg me-1"></i>Nuevo empleado
               </button>
             </div>
             <div class="card-body p-0">
@@ -545,7 +567,7 @@
                   <thead class="table-light">
                     <tr>
                       <th>ID</th>
-                      <th>Usuario</th>
+                      <th>Usuario acceso</th>
                       <th>Nombre Completo</th>
                       <th>Rol</th>
                       <th>Estado</th>
@@ -554,6 +576,42 @@
                     </tr>
                   </thead>
                   <tbody id="usersTable">
+                    <tr><td colspan="7" class="text-center py-4">Cargando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Usuarios (acceso a la plataforma) — solo administrador de empresa -->
+        <div id="pagePlatformUsers" class="page-content d-none">
+          <div class="alert alert-primary border-0 small mb-3 py-2">
+            <i class="bi bi-key-fill me-1"></i>
+            <strong>Usuarios:</strong> cuentas con las que su equipo inicia sesión en esta plataforma (usuario y contraseña). Los datos laborales detallados se registran en <strong>Empleados</strong>.
+          </div>
+          <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <h6 class="mb-0"><i class="bi bi-person-badge me-2"></i>Usuarios de la plataforma <span id="platformUsersCompanyLabel" class="badge bg-primary ms-1 d-none"></span></h6>
+              <button class="btn btn-primary btn-sm" id="btnNewPlatformUser">
+                <i class="bi bi-plus-lg me-1"></i>Nuevo usuario
+              </button>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>ID</th>
+                      <th>Usuario acceso</th>
+                      <th>Nombre</th>
+                      <th>Rol</th>
+                      <th>Estado</th>
+                      <th class="d-none d-md-table-cell">Creado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="platformUsersTable">
                     <tr><td colspan="7" class="text-center py-4">Cargando...</td></tr>
                   </tbody>
                 </table>
@@ -775,7 +833,7 @@
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="userFormTitle"><i class="bi bi-person-plus me-2"></i>Nuevo Usuario</h5>
+          <h5 class="modal-title" id="userFormTitle"><i class="bi bi-person-plus me-2"></i>Nuevo empleado</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
@@ -794,9 +852,13 @@
                 <input type="password" class="form-control" id="ufPassword" minlength="8" maxlength="100" autocomplete="new-password">
                 <small class="text-muted">Mín. 8 caracteres</small>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-2" id="ufRoleGroup">
                 <label for="ufRole" class="form-label">Rol</label>
                 <select class="form-select" id="ufRole"></select>
+              </div>
+              <div class="col-md-2 d-none" id="ufRoleReadonly">
+                <label class="form-label">Rol</label>
+                <p class="form-control-plaintext mb-0 border rounded px-2 py-1 bg-light" id="ufRoleLabel">—</p>
               </div>
               <div class="col-md-2 d-none" id="ufActiveGroup">
                 <label class="form-label">Estado</label>
@@ -815,13 +877,9 @@
                 <label for="ufFullName" class="form-label">Nombre Completo <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="ufFullName" required maxlength="100">
               </div>
-              <div class="col-md-3">
+              <div class="col-md-6">
                 <label for="ufPhone" class="form-label">Teléfono</label>
                 <input type="text" class="form-control" id="ufPhone" maxlength="20" placeholder="+34 612 345 678">
-              </div>
-              <div class="col-md-3">
-                <label for="ufDni" class="form-label">DNI / NIF</label>
-                <input type="text" class="form-control" id="ufDni" maxlength="30" placeholder="12345678A">
               </div>
               <div class="col-md-6">
                 <label for="ufEmail" class="form-label">Email de contacto</label>
@@ -1082,6 +1140,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
   <script src="js/api.js?v=20"></script>
-  <script src="js/app.js?v=20"></script>
+  <script src="js/app.js?v=22"></script>
 </body>
 </html>

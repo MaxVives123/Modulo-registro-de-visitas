@@ -157,6 +157,14 @@ async function runPostAlters(isPg) {
   for (const sql of fkAlters) {
     try { await sequelize.query(sql); } catch (_) { /* ya existe */ }
   }
+
+  const privacyAlters = [
+    'ALTER TABLE users DROP COLUMN IF EXISTS dni',
+    'ALTER TABLE visits ALTER COLUMN visitor_document DROP NOT NULL',
+  ];
+  for (const sql of privacyAlters) {
+    try { await sequelize.query(sql); } catch (_) { /* columna ya ajustada o tabla distinta */ }
+  }
 }
 
 async function startServer() {

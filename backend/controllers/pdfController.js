@@ -47,10 +47,9 @@ async function exportListPDF(req, res, next) {
     doc.moveDown(1);
 
     const cols = [
-      { label: 'Visitante', width: 110 },
-      { label: 'Documento', width: 75 },
-      { label: 'Empresa', width: 90 },
-      { label: 'Destino', width: 90 },
+      { label: 'Visitante', width: 115 },
+      { label: 'Empresa vis.', width: 95 },
+      { label: 'Destino', width: 95 },
       { label: 'Matrícula', width: 70 },
       { label: 'Estado', width: 75 },
       { label: 'Entrada', width: 100 },
@@ -93,7 +92,6 @@ async function exportListPDF(req, res, next) {
       }
       drawRow(y, [
         v.visitor_name,
-        v.visitor_document,
         v.visitor_company || '',
         v.destination,
         v.vehicle_plate || '',
@@ -145,8 +143,7 @@ async function exportVisitPDF(req, res, next) {
 
     const fields = [
       ['Visitante', visit.visitor_name],
-      ['Documento', visit.visitor_document],
-      ['Empresa', visit.visitor_company || 'N/A'],
+      ['Empresa del visitante', visit.visitor_company || 'N/A'],
       ['Email', visit.visitor_email || 'N/A'],
       ['Teléfono', visit.visitor_phone || 'N/A'],
       ['Destino', visit.destination],
