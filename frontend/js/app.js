@@ -41,13 +41,9 @@ const App = {
     document.getElementById('cpSaveBtn')?.addEventListener('click', () => this.handleChangePassword());
     document.getElementById('btnNewCompany')?.addEventListener('click', () => this.showCompanyForm());
     document.getElementById('companyFormSaveBtn')?.addEventListener('click', () => this.handleCompanySave());
-
-    // Evacuación
-    document.getElementById('btnTriggerEvacuation')?.addEventListener('click', () => this.showEvacuationConfirm());
-    document.getElementById('confirmEvacuationBtn')?.addEventListener('click', () => this.handleTriggerEvacuation());
-    document.getElementById('btnCloseEvacuation')?.addEventListener('click', () => this.handleCloseEvacuation());
-    document.getElementById('btnRefreshPresence')?.addEventListener('click', () => this.loadPresentNow());
-    document.getElementById('btnApplyPresenceFilter')?.addEventListener('click', () => this.loadPresentNow());
+    document.getElementById('btnDownloadUserTemplate')?.addEventListener('click', () => this.downloadUserImportTemplate());
+    document.getElementById('btnImportUsersExcel')?.addEventListener('click', () => document.getElementById('usersImportFileInput')?.click());
+    document.getElementById('usersImportFileInput')?.addEventListener('change', (e) => this.handleUsersImportFile(e));
 
     // Integraciones
     document.getElementById('testNotifForm')?.addEventListener('submit', (e) => this.handleTestNotification(e));
@@ -115,9 +111,6 @@ const App = {
     // Usuarios (acceso plataforma): solo administrador de empresa (no superadmin global)
     const showPlatformUsers = this.isCompanyAdmin() && !isSA;
     document.getElementById('sidebarPlatformUsersItem')?.classList.toggle('d-none', !showPlatformUsers);
-    // Evacuación: admin o quien tenga can_trigger_evacuation
-    const canEvac = isSA || this.isCompanyAdmin() || user.can_trigger_evacuation;
-    document.getElementById('sidebarEvacuationItem')?.classList.toggle('d-none', !canEvac);
     // Integraciones: solo superadmin
     document.getElementById('sidebarIntegrationsItem')?.classList.toggle('d-none', !isSA);
 
@@ -141,6 +134,7 @@ const App = {
         usersLabel.classList.add('d-none');
       }
     }
+    document.getElementById('usersImportCompanyWrap')?.classList.toggle('d-none', !isSA);
     const platformUsersLabel = document.getElementById('platformUsersCompanyLabel');
     if (platformUsersLabel) {
       if (!isSA && user.company_name) {
@@ -269,7 +263,6 @@ const App = {
       users: 'Gestión de Empleados',
       'platform-users': 'Usuarios de la plataforma',
       companies: 'Gestión de Empresas',
-      evacuation: 'Evacuación',
       integrations: 'Integraciones',
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
@@ -304,10 +297,6 @@ const App = {
       case 'companies':
         document.getElementById('pageCompanies').classList.remove('d-none');
         this.loadCompanies();
-        break;
-      case 'evacuation':
-        document.getElementById('pageEvacuation').classList.remove('d-none');
-        this.loadEvacuationPage();
         break;
       case 'integrations':
         document.getElementById('pageIntegrations').classList.remove('d-none');
@@ -1037,11 +1026,84 @@ const App = {
     const tbody = document.getElementById('usersTable');
     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
     try {
+      if (this.isSuperAdmin()) await this.fillUsersImportCompanySelect();
       const data = await API.getUsers();
       this.renderUsersTable(data.users);
     } catch (err) {
       tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar empleados</td></tr>';
     }
+  },
+
+  async fillUsersImportCompanySelect() {
+    const sel = document.getElementById('usersImportCompanyId');
+    if (!sel || !this.isSuperAdmin()) return;
+    try {
+      const data = await API.getCompanies({ active: 'true' });
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— Empresa destino —</option>';
+      (data.companies || []).forEach((c) => {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = c.name;
+        sel.appendChild(o);
+      });
+      if (cur) sel.value = cur;
+    } catch (_) { /* ignore */ }
+  },
+
+  async downloadUserImportTemplate() {
+    try {
+      await API.downloadUserImportTemplate();
+      this.toast('Plantilla descargada', 'success');
+    } catch (err) {
+      this.toast(err?.error || 'Error al descargar la plantilla', 'danger');
+    }
+  },
+
+  async handleUsersImportFile(e) {
+    const input = e.target;
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+
+    let companyId = null;
+    if (this.isSuperAdmin()) {
+      companyId = document.getElementById('usersImportCompanyId')?.value || '';
+      if (!companyId) {
+        this.toast('Selecciona la empresa destino antes de importar', 'warning');
+        return;
+      }
+    }
+
+    try {
+      const result = await API.importUsersFromExcel(file, companyId);
+      this.showUserImportResult(result);
+      if (result.created > 0) {
+        this.toast(`${result.created} empleado(s) importado(s)`, 'success');
+      } else if ((result.failed || 0) > 0) {
+        this.toast('Importación finalizada con errores. Revisa el detalle.', 'warning');
+      }
+      this.loadUsers();
+    } catch (err) {
+      this.toast(err?.error || 'Error al importar', 'danger');
+    }
+  },
+
+  showUserImportResult(result) {
+    const body = document.getElementById('userImportResultBody');
+    if (!body) return;
+    const errs = result.errors || [];
+    let html = `<p class="mb-2">${this.esc(result.message || '')}</p>`;
+    html += `<ul class="list-unstyled small mb-0"><li><strong>Creados:</strong> ${result.created ?? 0}</li><li><strong>Con error:</strong> ${result.failed ?? 0}</li></ul>`;
+    if (errs.length) {
+      html += '<div class="table-responsive mt-3" style="max-height:280px;"><table class="table table-sm table-bordered mb-0"><thead class="table-light"><tr><th>Fila</th><th>Usuario</th><th>Motivo</th></tr></thead><tbody>';
+      errs.forEach((er) => {
+        html += `<tr><td>${er.row}</td><td>${this.esc(er.username)}</td><td>${this.esc(er.error)}</td></tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+    body.innerHTML = html;
+    new bootstrap.Modal(document.getElementById('userImportResultModal')).show();
   },
 
   async loadPlatformUsers() {
@@ -1097,7 +1159,6 @@ const App = {
         <td>${this.esc(u.full_name)}${u.job_title ? `<br><small class="text-muted">${this.esc(u.job_title)}</small>` : ''}</td>
         <td>
           <span class="badge ${{ superadmin: 'bg-danger', admin: 'bg-primary', admin_empresa: 'bg-warning text-dark', user: 'bg-secondary' }[u.role] || 'bg-secondary'}">${{ superadmin: 'Superadmin', admin: 'Admin', admin_empresa: 'Admin empresa', user: 'Empleado' }[u.role] || u.role}</span>
-          ${u.can_trigger_evacuation ? '<span class="badge bg-danger ms-1" title="Puede activar evacuación"><i class="bi bi-exclamation-triangle"></i></span>' : ''}
           ${!u.can_receive_visits ? '<span class="badge bg-secondary ms-1" title="No recibe visitas"><i class="bi bi-slash-circle"></i></span>' : ''}
         </td>
         <td><span class="badge ${u.active ? 'bg-success' : 'bg-danger'}">${u.active ? 'Activo' : 'Inactivo'}</span></td>
@@ -1163,10 +1224,6 @@ const App = {
       }
     }
 
-    // Mostrar/ocultar campo de can_trigger_evacuation (solo superadmin puede cambiar)
-    const canTriggerGroup = document.getElementById('ufCanTriggerEvacGroup');
-    if (canTriggerGroup) canTriggerGroup.style.display = this.isSuperAdmin() ? '' : 'none';
-
     if (userId) {
       title.innerHTML = fromPlatform
         ? '<i class="bi bi-pencil me-2"></i>Editar usuario'
@@ -1193,7 +1250,6 @@ const App = {
         document.getElementById('ufSite').value = u.site || '';
         document.getElementById('ufBuilding').value = u.building || '';
         document.getElementById('ufCanReceiveVisits').value = String(u.can_receive_visits !== false);
-        document.getElementById('ufCanTriggerEvac').value = String(u.can_trigger_evacuation === true);
       }).catch(() => this.toast('Error al cargar usuario', 'danger'));
     } else {
       title.innerHTML = fromPlatform
@@ -1203,7 +1259,6 @@ const App = {
       pwGroup.classList.remove('d-none');
       activeGroup.classList.add('d-none');
       document.getElementById('ufCanReceiveVisits').value = 'true';
-      document.getElementById('ufCanTriggerEvac').value = 'false';
     }
     modal.show();
   },
@@ -1220,7 +1275,6 @@ const App = {
       site: document.getElementById('ufSite').value || null,
       building: document.getElementById('ufBuilding').value.trim(),
       can_receive_visits: document.getElementById('ufCanReceiveVisits').value === 'true',
-      can_trigger_evacuation: document.getElementById('ufCanTriggerEvac').value === 'true',
       role,
     };
   },

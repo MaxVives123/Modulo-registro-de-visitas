@@ -1,4 +1,6 @@
+const ExcelJS = require('exceljs');
 const { User, Company } = require('../models');
+const { JOB_LEVELS, DEPARTMENTS, SITES } = require('../models/User');
 const { isSuperAdmin } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
@@ -182,4 +184,340 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, getById, create, update, changePassword, remove };
+/** Normaliza cabeceras de Excel para mapear columnas */
+function normalizeHeader(raw) {
+  if (raw === undefined || raw === null) return '';
+  let s = String(raw).trim().toLowerCase();
+  s = s.replace(/ñ/g, 'n');
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return s.replace(/\s+/g, '_');
+}
+
+const HEADER_TO_FIELD = {
+  usuario: 'username',
+  username: 'username',
+  user: 'username',
+  usuario_acceso: 'username',
+  contrasena: 'password',
+  contraseña: 'password',
+  password: 'password',
+  clave: 'password',
+  nombre_completo: 'full_name',
+  nombre: 'full_name',
+  full_name: 'full_name',
+  apellidos_y_nombre: 'full_name',
+  email: 'email',
+  correo: 'email',
+  correo_electronico: 'email',
+  telefono: 'phone',
+  teléfono: 'phone',
+  phone: 'phone',
+  movil: 'phone',
+  departamento: 'department',
+  department: 'department',
+  dpto: 'department',
+  cargo: 'job_title',
+  titulo_cargo: 'job_title',
+  puesto: 'job_title',
+  job_title: 'job_title',
+  nivel_cargo: 'job_level',
+  job_level: 'job_level',
+  sede: 'site',
+  site: 'site',
+  edificio: 'building',
+  building: 'building',
+  puede_recibir_visitas: 'can_receive_visits',
+  recibe_visitas: 'can_receive_visits',
+};
+
+function mapHeaderToField(headerCell) {
+  const n = normalizeHeader(headerCell);
+  return HEADER_TO_FIELD[n] || null;
+}
+
+function parseBoolCell(val) {
+  if (val === undefined || val === null || val === '') return true;
+  const s = String(val).trim().toLowerCase();
+  if (['no', 'false', '0', 'n', 'f'].includes(s)) return false;
+  if (['sí', 'si', 'yes', 'true', '1', 's', 'y'].includes(s)) return true;
+  return true;
+}
+
+function validateOptionalEnum(value, allowed, label) {
+  if (!value || String(value).trim() === '') return { ok: true, value: null };
+  const v = String(value).trim();
+  if (!allowed.includes(v)) {
+    return { ok: false, error: `${label} inválido: "${v}". Valores: ${allowed.join(', ')}` };
+  }
+  return { ok: true, value: v };
+}
+
+/**
+ * GET /api/users/import/template
+ * Descarga plantilla .xlsx con columnas y hoja de referencia de códigos.
+ */
+async function downloadImportTemplate(req, res, next) {
+  try {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Sistema de Registro de Visitas';
+
+    const ws = wb.addWorksheet('Empleados', { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.columns = [
+      { header: 'usuario', key: 'u', width: 16 },
+      { header: 'contraseña', key: 'p', width: 14 },
+      { header: 'nombre_completo', key: 'n', width: 28 },
+      { header: 'email', key: 'e', width: 26 },
+      { header: 'telefono', key: 't', width: 14 },
+      { header: 'departamento', key: 'd', width: 22 },
+      { header: 'cargo', key: 'c', width: 22 },
+      { header: 'nivel_cargo', key: 'nl', width: 18 },
+      { header: 'sede', key: 's', width: 12 },
+      { header: 'edificio', key: 'b', width: 14 },
+      { header: 'puede_recibir_visitas', key: 'cr', width: 22 },
+    ];
+    const hr = ws.getRow(1);
+    hr.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    hr.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4361EE' } };
+
+    ws.addRow({
+      u: 'jperez',
+      p: 'Cambiar123',
+      n: 'Juan Pérez García',
+      e: 'juan.perez@empresa.com',
+      t: '+34 600 000 000',
+      d: 'rrhh',
+      c: 'Técnico de selección',
+      nl: 'tecnico_administrativo',
+      s: 'Madrid',
+      b: 'Torre A',
+      cr: 'sí',
+    });
+
+    ws.getCell('A3').value = 'Rellena una fila por empleado. Elimina la fila de ejemplo (jperez) antes de importar. Contraseñas: mínimo 8 caracteres. Usa los códigos exactos de la hoja "Referencia" para departamento, nivel_cargo y sede.';
+    ws.getCell('A3').font = { italic: true, color: { argb: 'FF666666' } };
+    ws.mergeCells('A3:K3');
+
+    const ref = wb.addWorksheet('Referencia');
+    ref.getCell('A1').value = 'departamento (código)';
+    ref.getCell('B1').value = 'nivel_cargo (código)';
+    ref.getCell('C1').value = 'sede (valor)';
+    ref.getCell('A1').font = { bold: true };
+    ref.getCell('B1').font = { bold: true };
+    ref.getCell('C1').font = { bold: true };
+
+    let r = 2;
+    const maxLen = Math.max(DEPARTMENTS.length, JOB_LEVELS.length, SITES.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (DEPARTMENTS[i]) ref.getCell(`A${r}`).value = DEPARTMENTS[i];
+      if (JOB_LEVELS[i]) ref.getCell(`B${r}`).value = JOB_LEVELS[i];
+      if (SITES[i]) ref.getCell(`C${r}`).value = SITES[i];
+      r++;
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=plantilla_empleados.xlsx');
+    await wb.xlsx.write(res);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/users/import  (multipart: file)
+ * Importa empleados desde Excel. Crea usuarios con rol "user" en la empresa del administrador.
+ */
+async function importExcel(req, res, next) {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ error: 'Adjunta un archivo Excel (.xlsx)' });
+    }
+
+    const callerRole = req.user.role;
+    let companyId;
+    if (isSuperAdmin(callerRole)) {
+      const raw = req.body.company_id;
+      companyId = raw ? parseInt(raw, 10) : null;
+      if (!companyId || Number.isNaN(companyId)) {
+        return res.status(400).json({ error: 'Como superadmin debes indicar company_id (empresa destino).' });
+      }
+      const comp = await Company.findByPk(companyId);
+      if (!comp) return res.status(404).json({ error: 'Empresa no encontrada' });
+    } else {
+      companyId = req.user.company_id;
+      if (!companyId) {
+        return res.status(400).json({ error: 'Tu usuario no está asociado a una empresa.' });
+      }
+    }
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer);
+    const ws = wb.getWorksheet('Empleados') || wb.worksheets[0];
+    if (!ws) {
+      return res.status(400).json({ error: 'El archivo no contiene hojas de cálculo.' });
+    }
+
+    const headerRow = ws.getRow(1);
+    const colToField = {};
+    headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+      const field = mapHeaderToField(cell.value);
+      if (field) colToField[colNumber] = field;
+    });
+
+    if (!colToField || !Object.values(colToField).includes('username')) {
+      return res.status(400).json({
+        error: 'Falta la columna obligatoria "usuario" (primera fila = cabeceras).',
+      });
+    }
+    if (!Object.values(colToField).includes('password')) {
+      return res.status(400).json({
+        error: 'Falta la columna obligatoria "contraseña".',
+      });
+    }
+    if (!Object.values(colToField).includes('full_name')) {
+      return res.status(400).json({
+        error: 'Falta la columna obligatoria "nombre_completo".',
+      });
+    }
+
+    const seenUsernames = new Set();
+    const results = { created: 0, failed: 0, errors: [] };
+
+    const maxRow = ws.rowCount;
+    for (let rowNum = 2; rowNum <= maxRow; rowNum++) {
+      const row = ws.getRow(rowNum);
+      const data = {};
+      Object.entries(colToField).forEach(([colStr, field]) => {
+        const col = parseInt(colStr, 10);
+        const cell = row.getCell(col);
+        let v = cell.value;
+        if (v && typeof v === 'object' && v.text !== undefined) v = v.text;
+        if (v !== undefined && v !== null) data[field] = String(v).trim();
+        else data[field] = '';
+      });
+
+      const username = data.username;
+      const password = data.password;
+      const fullName = data.full_name;
+
+      if (!username && !password && !fullName) continue;
+
+      if (!username || !password || !fullName) {
+        results.failed++;
+        results.errors.push({
+          row: rowNum,
+          username: username || '—',
+          error: 'Faltan usuario, contraseña o nombre_completo',
+        });
+        continue;
+      }
+
+      if (username.length < 3 || username.length > 50) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: 'Usuario: entre 3 y 50 caracteres' });
+        continue;
+      }
+
+      if (password.length < 8) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: 'Contraseña: mínimo 8 caracteres' });
+        continue;
+      }
+
+      if (fullName.length < 2 || fullName.length > 100) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: 'Nombre completo: entre 2 y 100 caracteres' });
+        continue;
+      }
+
+      if (seenUsernames.has(username.toLowerCase())) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: 'Usuario duplicado en el archivo' });
+        continue;
+      }
+      seenUsernames.add(username.toLowerCase());
+
+      const exists = await User.findOne({ where: { username } });
+      if (exists) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: 'El nombre de usuario ya existe en el sistema' });
+        continue;
+      }
+
+      const dep = validateOptionalEnum(data.department, DEPARTMENTS, 'departamento');
+      if (!dep.ok) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: dep.error });
+        continue;
+      }
+
+      const jl = validateOptionalEnum(data.job_level, JOB_LEVELS, 'nivel_cargo');
+      if (!jl.ok) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: jl.error });
+        continue;
+      }
+
+      const st = validateOptionalEnum(data.site, SITES, 'sede');
+      if (!st.ok) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: st.error });
+        continue;
+      }
+
+      let email = data.email || null;
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        results.failed++;
+        results.errors.push({ row: rowNum, username, error: 'Email inválido' });
+        continue;
+      }
+      if (email === '') email = null;
+
+      try {
+        await User.create({
+          username,
+          password,
+          full_name: fullName,
+          role: 'user',
+          company_id: companyId,
+          active: true,
+          phone: data.phone || null,
+          email,
+          job_level: jl.value,
+          job_title: data.job_title || null,
+          department: dep.value,
+          site: st.value,
+          building: data.building || null,
+          can_receive_visits: parseBoolCell(data.can_receive_visits),
+          can_trigger_evacuation: false,
+        });
+        results.created++;
+        logger.info(`Import empleado: ${username} (empresa ${companyId}) por ${req.user.username}`);
+      } catch (err) {
+        results.failed++;
+        results.errors.push({
+          row: rowNum,
+          username,
+          error: err.message || 'Error al crear',
+        });
+      }
+    }
+
+    res.status(201).json({
+      message: `Importación finalizada: ${results.created} creados, ${results.failed} con error.`,
+      ...results,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = {
+  list,
+  getById,
+  create,
+  update,
+  changePassword,
+  remove,
+  downloadImportTemplate,
+  importExcel,
+};

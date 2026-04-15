@@ -111,6 +111,37 @@ const API = {
   changeUserPassword(id, password) { return this.put(`/users/${id}/password`, { password }); },
   deleteUser(id) { return this.delete(`/users/${id}`); },
 
+  async downloadUserImportTemplate() {
+    const url = `${this.baseUrl}/users/import/template`;
+    const headers = {};
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw { error: data.error || 'Error al descargar la plantilla' };
+    }
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'plantilla_empleados.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+  },
+
+  async importUsersFromExcel(file, companyId) {
+    const url = `${this.baseUrl}/users/import`;
+    const headers = {};
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
+    const fd = new FormData();
+    fd.append('file', file);
+    if (companyId != null && companyId !== '') fd.append('company_id', String(companyId));
+    const response = await fetch(url, { method: 'POST', headers, body: fd });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw { status: response.status, ...data };
+    return data;
+  },
+
   // Notifications
   getNotifications(params = {}) {
     const query = new URLSearchParams();

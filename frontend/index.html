@@ -142,11 +142,6 @@
             <i class="bi bi-person-badge"></i><span>Usuarios</span>
           </a>
         </li>
-        <li id="sidebarEvacuationItem" class="d-none">
-          <a href="#" class="sidebar-link" data-page="evacuation" style="color:#f87171;">
-            <i class="bi bi-exclamation-triangle-fill"></i><span>Evacuación</span>
-          </a>
-        </li>
         <li id="sidebarCompaniesItem" class="d-none">
           <a href="#" class="sidebar-link" data-page="companies">
             <i class="bi bi-building"></i><span>Empresas</span>
@@ -552,14 +547,29 @@
         <div id="pageUsers" class="page-content d-none">
           <div class="alert alert-light border small mb-3 py-2 mb-md-3" id="employeesPageHint">
             <i class="bi bi-info-circle text-primary me-1"></i>
-            <strong>Empleados:</strong> datos de contacto, departamento, sede y permisos (quién puede recibir visitas). Las cuentas de acceso al sistema se gestionan en <strong>Usuarios</strong>.
+            <strong>Empleados:</strong> datos de contacto, departamento, sede y permisos (quién puede recibir visitas). Puedes <strong>descargar la plantilla Excel</strong> e <strong>importar</strong> muchos registros de una vez. Las cuentas de acceso al sistema se gestionan en <strong>Usuarios</strong>.
           </div>
           <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
               <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Gestión de Empleados <span id="usersCompanyLabel" class="badge bg-primary ms-1 d-none"></span></h6>
-              <button class="btn btn-primary btn-sm" id="btnNewUser">
-                <i class="bi bi-plus-lg me-1"></i>Nuevo empleado
-              </button>
+              <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
+                <div id="usersImportCompanyWrap" class="d-none">
+                  <label for="usersImportCompanyId" class="visually-hidden">Empresa destino importación</label>
+                  <select id="usersImportCompanyId" class="form-select form-select-sm" style="min-width: 200px;" title="Empresa a la que se asignarán los empleados importados">
+                    <option value="">— Empresa destino —</option>
+                  </select>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnDownloadUserTemplate" title="Descargar plantilla vacía">
+                  <i class="bi bi-download me-1"></i>Plantilla Excel
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btnImportUsersExcel" title="Subir archivo .xlsx rellenado">
+                  <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar Excel
+                </button>
+                <input type="file" id="usersImportFileInput" class="d-none" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                <button class="btn btn-primary btn-sm" id="btnNewUser">
+                  <i class="bi bi-plus-lg me-1"></i>Nuevo empleado
+                </button>
+              </div>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -614,121 +624,6 @@
                   <tbody id="platformUsersTable">
                     <tr><td colspan="7" class="text-center py-4">Cargando...</td></tr>
                   </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Evacuation Page -->
-        <div id="pageEvacuation" class="page-content d-none">
-          <!-- Banner de evacuación activa -->
-          <div id="evacuationActiveBanner" class="alert alert-danger d-flex align-items-center gap-3 mb-3 d-none" style="border-radius:12px;">
-            <i class="bi bi-exclamation-triangle-fill fs-3 flex-shrink-0"></i>
-            <div class="flex-grow-1">
-              <strong class="d-block fs-5">⚠ EVACUACIÓN ACTIVA</strong>
-              <span id="evacuationBannerInfo" class="small">Evacuación en curso…</span>
-            </div>
-            <button class="btn btn-outline-light btn-sm fw-semibold" id="btnCloseEvacuation">
-              <i class="bi bi-check-circle me-1"></i>Cerrar evacuación
-            </button>
-          </div>
-
-          <div class="row g-3 mb-3">
-            <!-- Panel de control -->
-            <div class="col-lg-4">
-              <div class="card shadow-sm border-danger h-100">
-                <div class="card-body text-center py-4">
-                  <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size:3rem;"></i>
-                  <h5 class="mt-3 mb-1">Alarma de Evacuación</h5>
-                  <p class="text-muted small mb-3">Solo para personal autorizado. Se notificará a todos en el edificio.</p>
-                  <button class="btn btn-danger btn-lg w-100 fw-bold" id="btnTriggerEvacuation">
-                    <i class="bi bi-bell-fill me-2"></i>ACTIVAR ALARMA
-                  </button>
-                  <hr class="my-3">
-                  <div id="evacuationMetrics" class="text-start">
-                    <div class="d-flex justify-content-between mb-1">
-                      <span class="small text-muted">Visitantes en planta:</span>
-                      <strong id="metricVisitors">—</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-1">
-                      <span class="small text-muted">Empleados presentes:</span>
-                      <strong id="metricEmployees">—</strong>
-                    </div>
-                    <div class="d-flex justify-content-between border-top pt-2 mt-1">
-                      <span class="small fw-semibold">Total en planta:</span>
-                      <strong id="metricTotal" class="fs-5 text-danger">—</strong>
-                    </div>
-                  </div>
-                  <button class="btn btn-outline-secondary btn-sm w-100 mt-2" id="btnRefreshPresence">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Actualizar recuento
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Filtros de presencia -->
-            <div class="col-lg-8">
-              <div class="card shadow-sm">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                  <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Personas en planta ahora</h6>
-                  <div class="d-flex gap-2">
-                    <select class="form-select form-select-sm" id="filterPresenceSite" style="width:auto;">
-                      <option value="">Todas las sedes</option>
-                      <option value="Barcelona">Barcelona</option>
-                      <option value="Madrid">Madrid</option>
-                      <option value="Londres">Londres</option>
-                    </select>
-                    <input type="text" class="form-control form-control-sm" id="filterPresenceBuilding" placeholder="Edificio" style="width:100px;">
-                    <button class="btn btn-sm btn-outline-primary" id="btnApplyPresenceFilter">
-                      <i class="bi bi-funnel"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="card-body p-0">
-                  <!-- Tabs: visitantes / empleados -->
-                  <ul class="nav nav-tabs px-3 pt-2" id="presenceTabs">
-                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabVisitors">Visitantes (<span id="tabVisitorCount">0</span>)</a></li>
-                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabEmployees">Empleados (<span id="tabEmployeeCount">0</span>)</a></li>
-                  </ul>
-                  <div class="tab-content">
-                    <div class="tab-pane fade show active" id="tabVisitors">
-                      <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0 align-middle">
-                          <thead class="table-light"><tr>
-                            <th>Visitante</th><th>Destino</th><th class="d-none d-md-table-cell">Teléfono</th><th class="d-none d-lg-table-cell">Sede</th><th>Entrada</th>
-                          </tr></thead>
-                          <tbody id="presentVisitorsTable"><tr><td colspan="5" class="text-center py-3 text-muted">Sin visitantes en planta</td></tr></tbody>
-                        </table>
-                      </div>
-                    </div>
-                    <div class="tab-pane fade" id="tabEmployees">
-                      <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0 align-middle">
-                          <thead class="table-light"><tr>
-                            <th>Empleado</th><th class="d-none d-md-table-cell">Departamento</th><th class="d-none d-md-table-cell">Teléfono</th><th class="d-none d-lg-table-cell">Sede</th>
-                          </tr></thead>
-                          <tbody id="presentEmployeesTable"><tr><td colspan="4" class="text-center py-3 text-muted">Sin empleados marcados como presentes</td></tr></tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Historial de evacuaciones -->
-          <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Historial de evacuaciones</h6>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle">
-                  <thead class="table-light"><tr>
-                    <th>ID</th><th>Estado</th><th>Canal</th><th>Activada por</th><th>Inicio</th><th>Fin</th><th>Acciones</th>
-                  </tr></thead>
-                  <tbody id="evacuationHistoryTable"><tr><td colspan="7" class="text-center py-3 text-muted">Sin evacuaciones registradas</td></tr></tbody>
                 </table>
               </div>
             </div>
@@ -815,7 +710,6 @@
                       <li><code>POST /api/integrations/access-events</code> — Badge in/out desde control de acceso</li>
                       <li><code>GET /api/integrations/presence</code> — Presencia actual</li>
                       <li><code>POST /api/integrations/notify</code> — Enviar notificación</li>
-                      <li><code>POST /api/integrations/evacuation/trigger</code> — Activar evacuación externamente</li>
                     </ul>
                   </div>
                 </div>
@@ -949,13 +843,6 @@
                   <option value="false">No</option>
                 </select>
               </div>
-              <div class="col-md-6" id="ufCanTriggerEvacGroup" style="display:none;">
-                <label for="ufCanTriggerEvac" class="form-label">¿Puede activar evacuación?</label>
-                <select class="form-select" id="ufCanTriggerEvac">
-                  <option value="false">No</option>
-                  <option value="true">Sí</option>
-                </select>
-              </div>
             </div>
 
             <div id="userFormError" class="alert alert-danger d-none mt-2"></div>
@@ -1086,45 +973,17 @@
     </div>
   </div>
 
-  <!-- Evacuation Trigger Confirmation Modal -->
-  <div class="modal fade" id="evacuationConfirmModal" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content border-danger">
-        <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Evacuación</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+  <!-- Resultado importación empleados Excel -->
+  <div class="modal fade" id="userImportResultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-file-earmark-check me-2"></i>Importación de empleados</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
-          <p class="fw-semibold">¿Estás seguro de que deseas activar la alarma de evacuación?</p>
-          <p class="text-muted small">Se enviará una notificación a TODOS los visitantes actuales y empleados con teléfono registrado.</p>
-          <!-- Solo visible para superadmin -->
-          <div class="mb-3 d-none" id="evacuationCompanyGroup">
-            <label class="form-label fw-semibold">Empresa <span class="text-danger">*</span></label>
-            <select class="form-select" id="evacuationCompanyId">
-              <option value="">— Selecciona empresa —</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Canal de notificación</label>
-            <select class="form-select" id="evacuationChannel">
-              <option value="mock">Mock (solo log, sin envío real)</option>
-              <option value="sms">SMS</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="both">SMS + WhatsApp</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Mensaje personalizado <small class="text-muted">(opcional)</small></label>
-            <textarea class="form-control" id="evacuationMessage" rows="3" placeholder="Deja en blanco para usar el mensaje por defecto…"></textarea>
-          </div>
-          <div class="alert alert-warning small"><i class="bi bi-info-circle me-1"></i>Esta acción queda registrada con tu usuario y hora exacta.</div>
-        </div>
+        <div class="modal-body" id="userImportResultBody"></div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger fw-bold" id="confirmEvacuationBtn">
-            <span class="spinner-border spinner-border-sm d-none me-2" id="evacuationSpinner"></span>
-            <i class="bi bi-bell-fill me-1"></i>Confirmar Alarma
-          </button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Aceptar</button>
         </div>
       </div>
     </div>
@@ -1139,7 +998,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
-  <script src="js/api.js?v=20"></script>
-  <script src="js/app.js?v=22"></script>
+  <script src="js/api.js?v=21"></script>
+  <script src="js/app.js?v=24"></script>
 </body>
 </html>

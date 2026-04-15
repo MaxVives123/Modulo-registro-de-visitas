@@ -15,6 +15,13 @@ function validationMiddleware(req, res, next) {
 function errorHandler(err, req, res, _next) {
   logger.error(`${err.message}`, { stack: err.stack, url: req.originalUrl, method: req.method });
 
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ error: 'El archivo supera el tamaño máximo (2 MB).' });
+  }
+  if (err.message && err.message.includes('Sube un archivo Excel')) {
+    return res.status(400).json({ error: err.message });
+  }
+
   if (err.name === 'SequelizeValidationError') {
     return res.status(400).json({
       error: 'Error de validación',
