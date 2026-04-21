@@ -63,10 +63,10 @@ async function create(req, res, next) {
       companyId = req.user.company_id;
     }
 
-    // Solo superadmin puede asignar roles distintos de empleado estándar
+    // Superadmin puede asignar cualquier rol; admin_empresa solo user/admin_empresa
     let assignedRole = role || 'user';
     if (!isSuperAdmin(callerRole)) {
-      assignedRole = 'user';
+      assignedRole = (role === 'admin_empresa') ? 'admin_empresa' : 'user';
     }
 
     const existing = await User.findOne({ where: { username } });
@@ -117,10 +117,10 @@ async function update(req, res, next) {
 
     if (req.body.role !== undefined) {
       if (!isSuperAdmin(req.user.role)) {
-        if (isSuperAdmin(req.body.role)) {
+        if (!['user', 'admin_empresa'].includes(req.body.role)) {
           return res.status(403).json({ error: 'No puedes asignar ese rol' });
         }
-        // Admin de empresa no modifica roles (solo crea empleados con rol user)
+        updates.role = req.body.role;
       } else {
         updates.role = req.body.role;
       }
@@ -140,6 +140,25 @@ async function update(req, res, next) {
 
     await user.update(updates);
     logger.info(`Usuario actualizado: ${user.username} por ${req.user.username}`);
+    res.json({ user: user.toJSON() });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updateVisitable(req, res, next) {
+  try {
+    const where = { id: req.params.id };
+    if (!isSuperAdmin(req.user.role)) where.company_id = req.user.company_id;
+    const user = await User.findOne({ where });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    if (typeof req.body.visitable !== 'boolean') {
+      return res.status(400).json({ error: 'Campo visitable inválido' });
+    }
+
+    await user.update({ can_receive_visits: req.body.visitable });
+    logger.info(`Visitable actualizado para ${user.username}: ${req.body.visitable} por ${req.user.username}`);
     res.json({ user: user.toJSON() });
   } catch (error) {
     next(error);
@@ -518,6 +537,7 @@ module.exports = {
   update,
   changePassword,
   remove,
+  updateVisitable,
   downloadImportTemplate,
   importExcel,
 };

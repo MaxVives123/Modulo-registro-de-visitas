@@ -65,6 +65,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
   justify-content: center;
   border-bottom: 1px solid rgba(255,255,255,0.1);
   overflow: hidden;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 /* Logo: ancho completo del header; altura natural de la imagen */
 .sidebar-logo {
@@ -73,7 +75,16 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
   height: auto;
   object-fit: contain;
   object-position: center;
-  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.25));
+  filter: brightness(0) invert(1) drop-shadow(0 0 1px rgba(255, 255, 255, 0.25));
+}
+.sidebar-company-title {
+  font-size: 0.8rem;
+  color: #fff;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidebar-nav { list-style: none; padding: 1rem 0; margin: 0; flex: 1; }
 .sidebar-link {
@@ -91,8 +102,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 }
 .sidebar-link i { font-size: 1.1rem; width: 24px; text-align: center; }
 .sidebar-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  display: none;
 }
 .sidebar-user {
   display: flex; align-items: center; gap: 0.5rem;

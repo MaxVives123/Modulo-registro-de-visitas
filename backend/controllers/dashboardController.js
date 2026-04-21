@@ -94,10 +94,19 @@ async function getDestinationChart(req, res, next) {
 async function getRecentVisits(req, res, next) {
   try {
     const scope = getCompanyScope(req);
+    const showAll = String(req.query.all || '').toLowerCase() === 'true';
+    const where = { ...scope };
+    if (!showAll) {
+      where.status = 'checked_in';
+    }
     const visits = await Visit.findAll({
-      where: scope,
+      where,
+      attributes: [
+        'id', 'visitor_name', 'visitor_company', 'destination', 'status',
+        'check_in', 'created_at',
+      ],
       order: [['created_at', 'DESC']],
-      limit: 5,
+      limit: 8,
       raw: true,
     });
     res.json({ visits });

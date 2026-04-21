@@ -87,7 +87,7 @@ const API = {
   getStats() { return this.get('/dashboard/stats'); },
   getActivity(days = 7) { return this.get(`/dashboard/activity?days=${days}`); },
   getDestinationChart() { return this.get('/dashboard/destinations'); },
-  getRecentVisits() { return this.get('/dashboard/recent'); },
+  getRecentVisits(all = false) { return this.get(`/dashboard/recent?all=${all ? 'true' : 'false'}`); },
 
   // Visits
   getVisits(params = {}) {
@@ -108,6 +108,7 @@ const API = {
   getUser(id) { return this.get(`/users/${id}`); },
   createUser(data) { return this.post('/users', data); },
   updateUser(id, data) { return this.put(`/users/${id}`, data); },
+  updateUserVisitable(id, visitable) { return this.put(`/users/${id}/visitable`, { visitable }); },
   changeUserPassword(id, password) { return this.put(`/users/${id}/password`, { password }); },
   deleteUser(id) { return this.delete(`/users/${id}`); },
 
@@ -163,32 +164,6 @@ const API = {
   createCompany(data) { return this.post('/companies', data); },
   updateCompany(id, data) { return this.put(`/companies/${id}`, data); },
   deleteCompany(id) { return this.delete(`/companies/${id}`); },
-
-  // Evacuation
-  triggerEvacuation(data) { return this.post('/evacuation/trigger', data); },
-  closeEvacuation(id) { return this.post(`/evacuation/${id}/close`, {}); },
-  getActiveEvacuation() { return this.get('/evacuation/active'); },
-  getEvacuationRollcall(id) { return this.get(`/evacuation/${id}/rollcall`); },
-  getPresentNow(params = {}) {
-    const query = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => { if (v) query.set(k, v); });
-    return this.get(`/evacuation/present-now?${query.toString()}`);
-  },
-  getEvacuationHistory() { return this.get('/evacuation/history'); },
-  async exportRollcallCSV(id) {
-    const url = `${this.baseUrl}/evacuation/${id}/rollcall?format=csv`;
-    const headers = {};
-    if (this.token) headers.Authorization = `Bearer ${this.token}`;
-    const response = await fetch(url, { headers });
-    if (!response.ok) throw { error: 'Error al exportar recuento' };
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `recuento_evacuacion_${id}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(blobUrl);
-  },
 
   // Integrations (para panel admin)
   getIntegrationsStatus() { return this.get('/integrations/status'); },

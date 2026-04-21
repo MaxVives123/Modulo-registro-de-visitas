@@ -26,6 +26,7 @@ router.post('/import', upload.single('file'), userController.importExcel);
 router.get('/:id', userController.getById);
 router.post('/', userValidation.create, validationMiddleware, userController.create);
 router.put('/:id', userValidation.update, validationMiddleware, userController.update);
+router.put('/:id/visitable', userController.updateVisitable);
 router.put('/:id/password', userValidation.changePassword, validationMiddleware, userController.changePassword);
 router.delete('/:id', userController.remove);
 

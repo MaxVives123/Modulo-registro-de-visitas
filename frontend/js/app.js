@@ -2,6 +2,8 @@ const App = {
   currentPage: 'dashboard',
   charts: {},
   visitListParams: { page: 1, limit: 15 },
+  dashboardActivityDays: 7,
+  dashboardRecentAll: false,
   editingVisitId: null,
   editingCompanyId: null,
   signaturePad: null,
@@ -66,6 +68,11 @@ const App = {
     document.getElementById('btnClearFilters').addEventListener('click', () => this.clearFilters());
     document.getElementById('btnExportExcel')?.addEventListener('click', () => this.exportExcel());
     document.getElementById('btnExportPDF').addEventListener('click', () => this.exportPDF());
+    document.getElementById('btnActivityWeek')?.addEventListener('click', () => this.setDashboardActivityRange(7));
+    document.getElementById('btnActivityMonth')?.addEventListener('click', () => this.setDashboardActivityRange(30));
+    document.getElementById('btnRecentCurrent')?.addEventListener('click', () => this.setDashboardRecentMode(false));
+    document.getElementById('btnRecentAll')?.addEventListener('click', () => this.setDashboardRecentMode(true));
+    document.getElementById('vPurposeSelect')?.addEventListener('change', () => this.togglePurposeCustom());
 
     document.getElementById('searchInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') this.loadVisits();
@@ -99,7 +106,6 @@ const App = {
     document.getElementById('loginScreen').classList.add('d-none');
     document.getElementById('appLayout').classList.remove('d-none');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    document.getElementById('sidebarUserName').textContent = user.full_name || 'Usuario';
     document.getElementById('navUserName').textContent = user.full_name || 'Usuario';
     const isSA = this.isSuperAdmin();
     const canUsers = this.canManageUsers();
@@ -109,41 +115,23 @@ const App = {
     // Empleados: superadmin y admin_empresa
     document.getElementById('sidebarUsersItem')?.classList.toggle('d-none', !canUsers);
     // Usuarios (acceso plataforma): solo administrador de empresa (no superadmin global)
-    const showPlatformUsers = this.isCompanyAdmin() && !isSA;
+    const showPlatformUsers = canUsers;
     document.getElementById('sidebarPlatformUsersItem')?.classList.toggle('d-none', !showPlatformUsers);
     // Integraciones: solo superadmin
     document.getElementById('sidebarIntegrationsItem')?.classList.toggle('d-none', !isSA);
 
-    // Badge de empresa en sidebar (para admin_empresa y user)
-    const companyBadge = document.getElementById('sidebarCompanyBadge');
-    const companyNameEl = document.getElementById('sidebarCompanyName');
+    const companyTitle = document.getElementById('sidebarCompanyTitle');
     if (!isSA && user.company_name) {
-      companyBadge?.classList.remove('d-none');
-      if (companyNameEl) companyNameEl.textContent = user.company_name;
+      if (companyTitle) {
+        companyTitle.textContent = user.company_name;
+        companyTitle.classList.remove('d-none');
+      }
     } else {
-      companyBadge?.classList.add('d-none');
+      companyTitle?.classList.add('d-none');
     }
 
     // Etiqueta empresa en panel de empleados
-    const usersLabel = document.getElementById('usersCompanyLabel');
-    if (usersLabel) {
-      if (!isSA && user.company_name) {
-        usersLabel.textContent = user.company_name;
-        usersLabel.classList.remove('d-none');
-      } else {
-        usersLabel.classList.add('d-none');
-      }
-    }
     document.getElementById('usersImportCompanyWrap')?.classList.toggle('d-none', !isSA);
-    const platformUsersLabel = document.getElementById('platformUsersCompanyLabel');
-    if (platformUsersLabel) {
-      if (!isSA && user.company_name) {
-        platformUsersLabel.textContent = user.company_name;
-        platformUsersLabel.classList.remove('d-none');
-      } else {
-        platformUsersLabel.classList.add('d-none');
-      }
-    }
     const employeesPageHint = document.getElementById('employeesPageHint');
     if (employeesPageHint) {
       employeesPageHint.classList.toggle('d-none', isSA);
@@ -260,8 +248,8 @@ const App = {
       dashboard: 'Dashboard',
       visits: 'Lista de Visitas',
       'new-visit': 'Nueva Visita',
-      users: 'Gestión de Empleados',
-      'platform-users': 'Usuarios de la plataforma',
+      users: 'Empleados',
+      'platform-users': 'Usuarios',
       companies: 'Gestión de Empresas',
       integrations: 'Integraciones',
     };
@@ -277,6 +265,8 @@ const App = {
         break;
       case 'visits':
         document.getElementById('pageVisits').classList.remove('d-none');
+        this.visitListParams.page = 1;
+        this.resetVisitsFiltersUI();
         this.loadVisits();
         break;
       case 'new-visit':
@@ -378,7 +368,19 @@ const App = {
       document.getElementById('vSite').value = v.site || '';
       document.getElementById('vBuilding').value = v.building || '';
       document.getElementById('vCompanyId').value = v.company_id || '';
-      document.getElementById('vPurpose').value = v.purpose || '';
+      const purposeSelect = document.getElementById('vPurposeSelect');
+      const purposeCustom = document.getElementById('vPurposeCustom');
+      if (purposeSelect) {
+        const options = Array.from(purposeSelect.options).map((o) => o.value);
+        if (options.includes(v.purpose)) {
+          purposeSelect.value = v.purpose;
+          if (purposeCustom) purposeCustom.value = '';
+        } else {
+          purposeSelect.value = 'Otro';
+          if (purposeCustom) purposeCustom.value = v.purpose || '';
+        }
+      }
+      this.togglePurposeCustom();
       document.getElementById('vNotes').value = v.notes || '';
     } catch (err) {
       this.toast('Error al cargar la visita', 'danger');
@@ -395,6 +397,11 @@ const App = {
     document.getElementById('vVehiclePlate').value = '';
     document.getElementById('vSite').value = '';
     document.getElementById('vBuilding').value = '';
+    const purposeSelect = document.getElementById('vPurposeSelect');
+    if (purposeSelect) purposeSelect.value = 'Reunión';
+    const purposeCustom = document.getElementById('vPurposeCustom');
+    if (purposeCustom) purposeCustom.value = '';
+    this.togglePurposeCustom();
     document.getElementById('visitFormTitle').innerHTML = '<i class="bi bi-person-plus me-2"></i>Nueva Visita';
     document.getElementById('visitSubmitBtn').innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-check-lg me-1"></i>Registrar Visita';
     const extras = document.getElementById('visitFormExtras');
@@ -453,7 +460,7 @@ const App = {
       building: document.getElementById('vBuilding').value.trim(),
       // Solo el superadmin puede elegir empresa desde el selector
       company_id: this.isSuperAdmin() ? (companyIdRaw ? parseInt(companyIdRaw, 10) : null) : undefined,
-      purpose: document.getElementById('vPurpose').value.trim(),
+      purpose: this.getPurposeValue(),
       notes: document.getElementById('vNotes').value.trim(),
     };
 
@@ -513,9 +520,9 @@ const App = {
     try {
       const [stats, activity, destinations, recent] = await Promise.all([
         API.getStats(),
-        API.getActivity(),
+        API.getActivity(this.dashboardActivityDays),
         API.getDestinationChart(),
-        API.getRecentVisits(),
+        API.getRecentVisits(this.dashboardRecentAll),
       ]);
 
       document.getElementById('statTotal').textContent = stats.total_visits.toLocaleString();
@@ -526,9 +533,27 @@ const App = {
       this.renderActivityChart(activity);
       this.renderDestinationChart(destinations);
       this.renderRecentVisits(recent.visits);
+      this.updateDashboardControls();
     } catch (err) {
       this.toast('Error al cargar el dashboard', 'danger');
     }
+  },
+
+  setDashboardActivityRange(days) {
+    this.dashboardActivityDays = days;
+    this.loadDashboard();
+  },
+
+  setDashboardRecentMode(showAll) {
+    this.dashboardRecentAll = showAll;
+    this.loadDashboard();
+  },
+
+  updateDashboardControls() {
+    document.getElementById('btnActivityWeek')?.classList.toggle('active', this.dashboardActivityDays === 7);
+    document.getElementById('btnActivityMonth')?.classList.toggle('active', this.dashboardActivityDays === 30);
+    document.getElementById('btnRecentCurrent')?.classList.toggle('active', !this.dashboardRecentAll);
+    document.getElementById('btnRecentAll')?.classList.toggle('active', this.dashboardRecentAll);
   },
 
   renderActivityChart(data) {
@@ -597,16 +622,17 @@ const App = {
   renderRecentVisits(visits) {
     const tbody = document.getElementById('recentVisitsTable');
     if (!visits.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">No hay visitas recientes</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">No hay visitas recientes</td></tr>';
       return;
     }
 
     tbody.innerHTML = visits.map((v) => `
       <tr>
-        <td><strong>${this.esc(v.visitor_name)}</strong><br><small class="text-muted">${this.esc(v.visitor_company || 'Particular')}</small></td>
-        <td class="d-none d-md-table-cell">${this.esc(v.destination)}</td>
+        <td><strong>${this.esc(v.visitor_name)}</strong></td>
+        <td class="d-none d-md-table-cell">${this.esc(v.visitor_company || 'Particular')}</td>
+        <td class="d-none d-lg-table-cell">${this.esc(v.destination)}</td>
         <td>${this.statusBadge(v.status)}</td>
-        <td class="d-none d-sm-table-cell"><small>${this.formatTime(v.check_in)}</small></td>
+        <td class="d-none d-sm-table-cell"><small>${this.formatDateTime(v.check_in || v.created_at)}</small></td>
       </tr>
     `).join('');
   },
@@ -656,14 +682,14 @@ const App = {
         <td>${this.statusBadge(v.status)}</td>
         <td class="d-none d-sm-table-cell"><small>${this.formatDateTime(v.check_in)}</small></td>
         <td>
-          <div class="d-flex gap-1 flex-wrap">
+          <div class="d-flex gap-1 flex-wrap align-items-center">
+            ${v.status === 'checked_in' ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>` : ''}
             <button class="btn btn-outline-primary btn-action" title="Ver detalle" onclick="App.showVisitDetail(${v.id})">
               <i class="bi bi-eye"></i>
             </button>
             <button class="btn btn-outline-success btn-action" title="Imprimir credencial" onclick="App.showCredentialAndPrint(${v.id})">
               <i class="bi bi-printer"></i>
             </button>
-            ${v.status === 'checked_in' ? `<button class="btn btn-outline-warning btn-action" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right"></i></button>` : ''}
             <button class="btn btn-outline-secondary btn-action" title="Editar" onclick="App.editVisit(${v.id})">
               <i class="bi bi-pencil"></i>
             </button>
@@ -726,14 +752,18 @@ const App = {
   },
 
   clearFilters() {
+    this.resetVisitsFiltersUI();
+    this.visitListParams.page = 1;
+    this.loadVisits();
+  },
+
+  resetVisitsFiltersUI() {
     document.getElementById('searchInput').value = '';
     document.getElementById('filterStatus').value = '';
     document.getElementById('filterDateFrom').value = '';
     document.getElementById('filterDateTo').value = '';
     const filterPlate = document.getElementById('filterPlate');
     if (filterPlate) filterPlate.value = '';
-    this.visitListParams.page = 1;
-    this.loadVisits();
   },
 
   getVisitExportParams() {
@@ -784,13 +814,18 @@ const App = {
           <div class="detail-item"><label>Empresa visitante</label><span>${this.esc(v.visitor_company || 'N/A')}</span></div>
           <div class="detail-item"><label>Email visitante</label><span>${this.esc(v.visitor_email || 'N/A')}</span></div>
           <div class="detail-item"><label>Teléfono</label><span>${this.esc(v.visitor_phone || 'N/A')}</span></div>
-          <div class="detail-item"><label>Empresa (sistema)</label><span>${this.esc(v.company?.name || 'N/A')}</span></div>
-          <div class="detail-item"><label>Destino / Dpto.</label><span>${this.esc(v.destination)}</span></div>
+        </div>
+        <hr class="my-3">
+        <div class="detail-grid">
           <div class="detail-item"><label>Persona visitada</label><span>${this.esc(v.host_name || 'N/A')}</span></div>
+          <div class="detail-item"><label>Destino / Dpto.</label><span>${this.esc(v.destination)}</span></div>
           <div class="detail-item"><label>Email persona visitada</label><span>${this.esc(v.host_email || 'N/A')}</span></div>
           ${v.vehicle_plate ? `<div class="detail-item"><label>Matrícula vehículo</label><span class="badge bg-warning text-dark fs-6">${this.esc(v.vehicle_plate)}</span></div>` : ''}
           ${v.site || v.building ? `<div class="detail-item"><label>Ubicación</label><span>${this.esc([v.site, v.building].filter(Boolean).join(' – '))}</span></div>` : ''}
           <div class="detail-item"><label>Motivo</label><span>${this.esc(v.purpose)}</span></div>
+        </div>
+        <hr class="my-3">
+        <div class="detail-grid">
           <div class="detail-item"><label>Estado</label><span>${this.statusBadge(v.status)}</span></div>
           <div class="detail-item"><label>Entrada</label><span>${this.formatDateTime(v.check_in) || 'Sin registro'}</span></div>
           <div class="detail-item"><label>Salida</label><span>${this.formatDateTime(v.check_out) || 'Sin registro'}</span></div>
@@ -807,19 +842,13 @@ const App = {
       `;
 
       let footerHtml = `
+        ${v.status === 'checked_in' ? `<button class="btn btn-warning fw-semibold" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Registrar Salida</button>` : ''}
         <button class="btn btn-success" onclick="App.showCredentialAndPrint(${v.id})">
           <i class="bi bi-printer me-1"></i>Imprimir Credencial
         </button>
         <button class="btn btn-danger" onclick="App.downloadVisitPDF(${v.id})">
           <i class="bi bi-filetype-pdf me-1"></i>PDF
         </button>`;
-
-      if (v.status === 'checked_in') {
-        footerHtml += `
-          <button class="btn btn-warning" onclick="App.performCheckOut(${v.id})">
-            <i class="bi bi-box-arrow-right me-1"></i>Registrar Salida
-          </button>`;
-      }
 
       footerHtml += `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`;
       document.getElementById('visitDetailFooter').innerHTML = footerHtml;
@@ -1024,13 +1053,13 @@ const App = {
 
   async loadUsers() {
     const tbody = document.getElementById('usersTable');
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
     try {
       if (this.isSuperAdmin()) await this.fillUsersImportCompanySelect();
       const data = await API.getUsers();
       this.renderUsersTable(data.users);
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar empleados</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error al cargar empleados</td></tr>';
     }
   },
 
@@ -1109,29 +1138,29 @@ const App = {
   async loadPlatformUsers() {
     const tbody = document.getElementById('platformUsersTable');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
     try {
       const data = await API.getUsers();
       this.renderPlatformUsersTable(data.users);
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar usuarios</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error al cargar usuarios</td></tr>';
     }
   },
 
   renderPlatformUsersTable(users) {
     const tbody = document.getElementById('platformUsersTable');
     if (!tbody) return;
-    if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay usuarios</td></tr>';
+    const platformUsers = users.filter((u) => ['user', 'admin_empresa', 'admin'].includes(u.role));
+    if (!platformUsers.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No hay usuarios</td></tr>';
       return;
     }
-    tbody.innerHTML = users.map((u) => `
+    tbody.innerHTML = platformUsers.map((u) => `
       <tr class="${!u.active ? 'table-secondary' : ''}">
-        <td><small class="text-muted">#${u.id}</small></td>
         <td><strong>${this.esc(u.username)}</strong></td>
         <td>${this.esc(u.full_name)}</td>
         <td>
-          <span class="badge ${{ superadmin: 'bg-danger', admin: 'bg-primary', admin_empresa: 'bg-warning text-dark', user: 'bg-secondary' }[u.role] || 'bg-secondary'}">${{ superadmin: 'Superadmin', admin: 'Admin', admin_empresa: 'Admin empresa', user: 'Empleado' }[u.role] || u.role}</span>
+          <span class="badge ${u.role === 'user' ? 'bg-secondary' : 'bg-primary'}">${u.role === 'user' ? 'Usuario' : 'Admin'}</span>
         </td>
         <td><span class="badge ${u.active ? 'bg-success' : 'bg-danger'}">${u.active ? 'Activo' : 'Inactivo'}</span></td>
         <td class="d-none d-md-table-cell"><small>${this.formatDateTime(u.createdAt)}</small></td>
@@ -1149,25 +1178,25 @@ const App = {
   renderUsersTable(users) {
     const tbody = document.getElementById('usersTable');
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay empleados</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No hay empleados</td></tr>';
       return;
     }
-    tbody.innerHTML = users.map((u) => `
+    const employees = users.filter((u) => u.role === 'user');
+    if (!employees.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No hay empleados</td></tr>';
+      return;
+    }
+    tbody.innerHTML = employees.map((u) => `
       <tr class="${!u.active ? 'table-secondary' : ''}">
-        <td><small class="text-muted">#${u.id}</small></td>
-        <td><strong>${this.esc(u.username)}</strong>${u.email ? `<br><small class="text-muted">${this.esc(u.email)}</small>` : ''}</td>
-        <td>${this.esc(u.full_name)}${u.job_title ? `<br><small class="text-muted">${this.esc(u.job_title)}</small>` : ''}</td>
-        <td>
-          <span class="badge ${{ superadmin: 'bg-danger', admin: 'bg-primary', admin_empresa: 'bg-warning text-dark', user: 'bg-secondary' }[u.role] || 'bg-secondary'}">${{ superadmin: 'Superadmin', admin: 'Admin', admin_empresa: 'Admin empresa', user: 'Empleado' }[u.role] || u.role}</span>
-          ${!u.can_receive_visits ? '<span class="badge bg-secondary ms-1" title="No recibe visitas"><i class="bi bi-slash-circle"></i></span>' : ''}
-        </td>
-        <td><span class="badge ${u.active ? 'bg-success' : 'bg-danger'}">${u.active ? 'Activo' : 'Inactivo'}</span></td>
-        <td class="d-none d-md-table-cell"><small>${this.formatDateTime(u.createdAt)}</small></td>
+        <td>${this.esc(u.full_name)}</td>
+        <td>${this.esc(u.department || '—')}</td>
+        <td>${this.esc(u.email || '—')}</td>
+        <td>${this.esc(u.phone || '—')}</td>
+        <td><span class="badge ${u.can_receive_visits ? 'bg-success' : 'bg-secondary'}">${u.can_receive_visits ? 'Sí' : 'No'}</span></td>
         <td>
           <div class="d-flex gap-1 flex-wrap">
             <button class="btn btn-outline-primary btn-action" title="Editar" onclick="App.showUserForm(${u.id}, { fromPlatform: false })"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-outline-warning btn-action" title="Cambiar contraseña" onclick="App.showChangePassword(${u.id})"><i class="bi bi-key"></i></button>
-            ${u.active ? `<button class="btn btn-outline-danger btn-action" title="Desactivar" onclick="App.deactivateUser(${u.id}, '${this.esc(u.username)}')"><i class="bi bi-person-slash"></i></button>` : ''}
+            <button class="btn btn-outline-${u.can_receive_visits ? 'warning' : 'success'} btn-action" title="${u.can_receive_visits ? 'Marcar no visitable' : 'Marcar visitable'}" onclick="App.toggleUserVisitable(${u.id}, ${u.can_receive_visits ? 'false' : 'true'})"><i class="bi bi-${u.can_receive_visits ? 'eye-slash' : 'eye'}"></i></button>
           </div>
         </td>
       </tr>
@@ -1197,9 +1226,9 @@ const App = {
     document.getElementById('userFormId').value = '';
     errorDiv.classList.add('d-none');
 
-    // Ajustar opciones de rol según quién llama (solo superadmin elige rol; admin empresa solo crea empleados)
+    // Ajustar opciones de rol según tipo de formulario y permisos.
     if (roleGroup && roleReadonly && roleLabelEl) {
-      if (this.isSuperAdmin()) {
+      if (fromPlatform || this.isSuperAdmin()) {
         roleGroup.classList.remove('d-none');
         roleReadonly.classList.add('d-none');
       } else {
@@ -1213,16 +1242,17 @@ const App = {
     }
 
     if (roleSelect) {
-      if (this.isSuperAdmin()) {
-        roleSelect.innerHTML = `
-          <option value="user">Empleado</option>
-          <option value="admin_empresa">Administrador empresa</option>
-          <option value="admin">Admin</option>
-          <option value="superadmin">Superadmin</option>`;
-      } else {
-        roleSelect.innerHTML = '<option value="user">Empleado</option>';
-      }
+      roleSelect.innerHTML = fromPlatform
+        ? '<option value="user">Usuario</option><option value="admin_empresa">Admin</option>'
+        : '<option value="user">Empleado</option>';
     }
+
+    document.querySelectorAll('#userForm .user-platform-only').forEach((el) => {
+      el.classList.toggle('d-none', !fromPlatform);
+    });
+    document.querySelectorAll('#userForm .user-employee-only').forEach((el) => {
+      el.classList.toggle('d-none', fromPlatform);
+    });
 
     if (userId) {
       title.innerHTML = fromPlatform
@@ -1236,7 +1266,7 @@ const App = {
         document.getElementById('userFormId').value = u.id;
         usernameInput.value = u.username;
         document.getElementById('ufFullName').value = u.full_name || '';
-        if (this.isSuperAdmin()) {
+        if (fromPlatform || this.isSuperAdmin()) {
           document.getElementById('ufRole').value = u.role || 'user';
         } else if (roleLabelEl) {
           roleLabelEl.textContent = this._roleLabelEs(u.role);
@@ -1264,17 +1294,19 @@ const App = {
   },
 
   _collectUserFormData() {
-    const role = this.isSuperAdmin() ? document.getElementById('ufRole').value : 'user';
+    const canChooseRole = this.isSuperAdmin() || this._userFormFromPlatform === true;
+    const role = canChooseRole ? document.getElementById('ufRole').value : 'user';
+    const fromPlatform = this._userFormFromPlatform === true;
     return {
       full_name: document.getElementById('ufFullName').value.trim(),
       phone: document.getElementById('ufPhone').value.trim(),
       email: document.getElementById('ufEmail').value.trim(),
-      job_level: document.getElementById('ufJobLevel').value || null,
-      job_title: document.getElementById('ufJobTitle').value.trim(),
-      department: document.getElementById('ufDepartment').value || null,
-      site: document.getElementById('ufSite').value || null,
-      building: document.getElementById('ufBuilding').value.trim(),
-      can_receive_visits: document.getElementById('ufCanReceiveVisits').value === 'true',
+      job_level: fromPlatform ? null : (document.getElementById('ufJobLevel').value || null),
+      job_title: fromPlatform ? null : document.getElementById('ufJobTitle').value.trim(),
+      department: fromPlatform ? null : (document.getElementById('ufDepartment').value || null),
+      site: fromPlatform ? null : (document.getElementById('ufSite').value || null),
+      building: fromPlatform ? null : document.getElementById('ufBuilding').value.trim(),
+      can_receive_visits: fromPlatform ? true : (document.getElementById('ufCanReceiveVisits').value === 'true'),
       role,
     };
   },
@@ -1290,7 +1322,7 @@ const App = {
           ...this._collectUserFormData(),
           active: document.getElementById('ufActive').value === 'true',
         };
-        if (!this.isSuperAdmin()) delete updateData.role;
+        if (!this.isSuperAdmin() && !this._userFormFromPlatform) delete updateData.role;
         await API.updateUser(id, updateData);
         this.toast(this._userFormFromPlatform ? 'Usuario actualizado' : 'Empleado actualizado', 'success');
       } else {
@@ -1355,6 +1387,33 @@ const App = {
     } catch (err) {
       this.toast(err.error || (isPlat ? 'Error al desactivar usuario' : 'Error al desactivar empleado'), 'danger');
     }
+  },
+
+  async toggleUserVisitable(id, visitable) {
+    try {
+      await API.updateUserVisitable(id, visitable);
+      this.toast(`Empleado ${visitable ? 'marcado como visitable' : 'marcado como no visitable'}`, 'success');
+      this.loadUsers();
+    } catch (err) {
+      this.toast(err?.error || 'Error al actualizar visitable', 'danger');
+    }
+  },
+
+  getPurposeValue() {
+    const sel = document.getElementById('vPurposeSelect');
+    const custom = document.getElementById('vPurposeCustom');
+    if (!sel) return '';
+    if (sel.value === 'Otro') return custom?.value.trim() || '';
+    return sel.value;
+  },
+
+  togglePurposeCustom() {
+    const sel = document.getElementById('vPurposeSelect');
+    const wrap = document.getElementById('vPurposeCustomWrap');
+    if (!sel || !wrap) return;
+    const isOther = sel.value === 'Otro';
+    wrap.classList.toggle('d-none', !isOther);
+    if (!isOther) document.getElementById('vPurposeCustom').value = '';
   },
 
   // ===== COMPANIES =====
