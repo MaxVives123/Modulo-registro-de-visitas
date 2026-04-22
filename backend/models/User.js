@@ -34,6 +34,7 @@ module.exports = (sequelize) => {
     // Información personal
     phone: { type: DataTypes.STRING(20), allowNull: true },
     email: { type: DataTypes.STRING(100), allowNull: true, validate: { isEmail: true } },
+    document_id: { type: DataTypes.STRING(30), allowNull: true },
 
     // Cargo y ubicación
     job_level: { type: DataTypes.STRING(50), allowNull: true },

@@ -104,7 +104,12 @@ const API = {
   getDestinations() { return this.get('/visits/destinations'); },
 
   // Users (admin)
-  getUsers() { return this.get('/users'); },
+  getUsers(params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') query.set(k, v); });
+    const qs = query.toString();
+    return this.get(`/users${qs ? '?' + qs : ''}`);
+  },
   getUser(id) { return this.get(`/users/${id}`); },
   createUser(data) { return this.post('/users', data); },
   updateUser(id, data) { return this.put(`/users/${id}`, data); },

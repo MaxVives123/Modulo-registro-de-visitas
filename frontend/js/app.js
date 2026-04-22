@@ -43,9 +43,9 @@ const App = {
     document.getElementById('cpSaveBtn')?.addEventListener('click', () => this.handleChangePassword());
     document.getElementById('btnNewCompany')?.addEventListener('click', () => this.showCompanyForm());
     document.getElementById('companyFormSaveBtn')?.addEventListener('click', () => this.handleCompanySave());
-    document.getElementById('btnDownloadUserTemplate')?.addEventListener('click', () => this.downloadUserImportTemplate());
     document.getElementById('btnImportUsersExcel')?.addEventListener('click', () => document.getElementById('usersImportFileInput')?.click());
     document.getElementById('usersImportFileInput')?.addEventListener('change', (e) => this.handleUsersImportFile(e));
+    document.getElementById('vHostUserId')?.addEventListener('change', () => this.onHostSelected());
 
     // Integraciones
     document.getElementById('testNotifForm')?.addEventListener('submit', (e) => this.handleTestNotification(e));
@@ -336,38 +336,38 @@ const App = {
 
   _applyCompanyScopeToForm() {
     const user = this.currentUser();
-    const selectGroup = document.getElementById('vCompanySelectGroup');
     const fixedGroup = document.getElementById('vCompanyFixedGroup');
     const fixedEl = document.getElementById('vCompanyFixed');
-
-    if (this.isSuperAdmin()) {
-      selectGroup?.classList.remove('d-none');
-      fixedGroup?.classList.add('d-none');
-      this.loadCompaniesForSelect();
-    } else {
-      selectGroup?.classList.add('d-none');
-      fixedGroup?.classList.remove('d-none');
-      if (fixedEl) fixedEl.textContent = user.company_name || 'Mi empresa';
-    }
+    fixedGroup?.classList.remove('d-none');
+    if (fixedEl) fixedEl.textContent = user.company_name || 'Mi empresa';
   },
 
   async loadVisitForEdit(id) {
     try {
       this._applyCompanyScopeToForm();
+      await this.loadHostCandidates();
       const data = await API.getVisit(id);
       const v = data.visit;
+      this._loadedVisitHostName = v.host_name || '';
       document.getElementById('visitId').value = v.id;
       document.getElementById('vName').value = v.visitor_name || '';
       document.getElementById('vCompany').value = v.visitor_company || '';
       document.getElementById('vEmail').value = v.visitor_email || '';
       document.getElementById('vPhone').value = v.visitor_phone || '';
       document.getElementById('vDestination').value = v.destination || '';
-      document.getElementById('vHostName').value = v.host_name || '';
+      const hostSel = document.getElementById('vHostUserId');
+      if (hostSel) {
+        const byName = this._hostCandidates?.find((u) => (u.full_name || '').toLowerCase() === (v.host_name || '').toLowerCase());
+        hostSel.value = byName ? String(byName.id) : '';
+        if (byName) this.onHostSelected();
+      }
       document.getElementById('vHostEmail').value = v.host_email || '';
       document.getElementById('vVehiclePlate').value = v.vehicle_plate || '';
       document.getElementById('vSite').value = v.site || '';
       document.getElementById('vBuilding').value = v.building || '';
-      document.getElementById('vCompanyId').value = v.company_id || '';
+      document.getElementById('vHostDocument').value = '';
+      document.getElementById('vHostPhone').value = '';
+      document.getElementById('vHostJobTitle').value = '';
       const purposeSelect = document.getElementById('vPurposeSelect');
       const purposeCustom = document.getElementById('vPurposeCustom');
       if (purposeSelect) {
@@ -390,10 +390,14 @@ const App = {
   resetVisitForm() {
     document.getElementById('visitForm').reset();
     document.getElementById('visitId').value = '';
-    const selEl = document.getElementById('vCompanyId');
+    const selEl = document.getElementById('vHostUserId');
     if (selEl) selEl.value = '';
-    document.getElementById('vHostName').value = '';
+    const hostSel = document.getElementById('vHostUserId');
+    if (hostSel) hostSel.value = '';
     document.getElementById('vHostEmail').value = '';
+    document.getElementById('vHostDocument').value = '';
+    document.getElementById('vHostPhone').value = '';
+    document.getElementById('vHostJobTitle').value = '';
     document.getElementById('vVehiclePlate').value = '';
     document.getElementById('vSite').value = '';
     document.getElementById('vBuilding').value = '';
@@ -412,6 +416,8 @@ const App = {
     const sigBlock = document.getElementById('signatureBlock');
     if (sigBlock) sigBlock.classList.remove('d-none');
     this.clearSignature();
+    this._loadedVisitHostName = '';
+    this.loadHostCandidates();
   },
 
   setVisitFormError(message, type = 'danger') {
@@ -446,25 +452,25 @@ const App = {
     const errorDiv = document.getElementById('visitFormError');
     if (!btn) return;
 
-    const companyIdRaw = document.getElementById('vCompanyId').value;
+    const hostSel = document.getElementById('vHostUserId');
+    const selectedHost = hostSel ? this._hostCandidates?.find((u) => String(u.id) === hostSel.value) : null;
     const data = {
       visitor_name: document.getElementById('vName').value.trim(),
       visitor_company: document.getElementById('vCompany').value.trim(),
       visitor_email: document.getElementById('vEmail').value.trim(),
       visitor_phone: document.getElementById('vPhone').value.trim(),
       destination: document.getElementById('vDestination').value.trim(),
-      host_name: document.getElementById('vHostName').value.trim(),
+      host_name: selectedHost?.full_name || this._loadedVisitHostName || '',
       host_email: document.getElementById('vHostEmail').value.trim(),
       vehicle_plate: document.getElementById('vVehiclePlate').value.trim(),
       site: document.getElementById('vSite').value.trim(),
       building: document.getElementById('vBuilding').value.trim(),
-      // Solo el superadmin puede elegir empresa desde el selector
-      company_id: this.isSuperAdmin() ? (companyIdRaw ? parseInt(companyIdRaw, 10) : null) : undefined,
+      company_id: this.isSuperAdmin() ? (selectedHost?.company_id || null) : undefined,
       purpose: this.getPurposeValue(),
       notes: document.getElementById('vNotes').value.trim(),
     };
 
-    if (!data.visitor_name || !data.destination || !data.purpose) {
+    if (!data.visitor_name || !data.host_name || !data.destination || !data.purpose) {
       this.setVisitFormError('Completa todos los campos obligatorios', 'danger');
       return;
     }
@@ -1082,8 +1088,7 @@ const App = {
 
   async downloadUserImportTemplate() {
     try {
-      await API.downloadUserImportTemplate();
-      this.toast('Plantilla descargada', 'success');
+      this.toast('Importación disponible desde el botón "Importar Excel"', 'info');
     } catch (err) {
       this.toast(err?.error || 'Error al descargar la plantilla', 'danger');
     }
@@ -1274,12 +1279,12 @@ const App = {
         document.getElementById('ufActive').value = String(u.active);
         document.getElementById('ufPhone').value = u.phone || '';
         document.getElementById('ufEmail').value = u.email || '';
+        document.getElementById('ufDocumentId').value = u.document_id || '';
         document.getElementById('ufJobLevel').value = u.job_level || '';
         document.getElementById('ufJobTitle').value = u.job_title || '';
         document.getElementById('ufDepartment').value = u.department || '';
         document.getElementById('ufSite').value = u.site || '';
         document.getElementById('ufBuilding').value = u.building || '';
-        document.getElementById('ufCanReceiveVisits').value = String(u.can_receive_visits !== false);
       }).catch(() => this.toast('Error al cargar usuario', 'danger'));
     } else {
       title.innerHTML = fromPlatform
@@ -1288,7 +1293,7 @@ const App = {
       usernameInput.disabled = false;
       pwGroup.classList.remove('d-none');
       activeGroup.classList.add('d-none');
-      document.getElementById('ufCanReceiveVisits').value = 'true';
+      document.getElementById('ufDocumentId').value = '';
     }
     modal.show();
   },
@@ -1301,12 +1306,13 @@ const App = {
       full_name: document.getElementById('ufFullName').value.trim(),
       phone: document.getElementById('ufPhone').value.trim(),
       email: document.getElementById('ufEmail').value.trim(),
+      document_id: fromPlatform ? null : document.getElementById('ufDocumentId').value.trim(),
       job_level: fromPlatform ? null : (document.getElementById('ufJobLevel').value || null),
       job_title: fromPlatform ? null : document.getElementById('ufJobTitle').value.trim(),
       department: fromPlatform ? null : (document.getElementById('ufDepartment').value || null),
       site: fromPlatform ? null : (document.getElementById('ufSite').value || null),
       building: fromPlatform ? null : document.getElementById('ufBuilding').value.trim(),
-      can_receive_visits: fromPlatform ? true : (document.getElementById('ufCanReceiveVisits').value === 'true'),
+      can_receive_visits: true,
       role,
     };
   },
@@ -1416,24 +1422,50 @@ const App = {
     if (!isOther) document.getElementById('vPurposeCustom').value = '';
   },
 
-  // ===== COMPANIES =====
-  async loadCompaniesForSelect() {
-    if (!this.isSuperAdmin()) return; // no necesario para empleados de empresa
+  async loadHostCandidates() {
+    const sel = document.getElementById('vHostUserId');
+    if (!sel) return;
+    const params = { role: 'user', active: 'true', visitable: 'true' };
+    if (this.isSuperAdmin()) {
+      const cid = this.currentUser().company_id;
+      if (cid) params.company_id = String(cid);
+    }
     try {
-      const data = await API.getCompanies({ active: 'true' });
-      this._companiesCache = data.companies || [];
-      const sel = document.getElementById('vCompanyId');
-      if (!sel) return;
-      const currentVal = sel.value;
-      sel.innerHTML = '<option value="">— Sin empresa / Particular —</option>';
-      this._companiesCache.forEach((c) => {
+      const data = await API.getUsers(params);
+      this._hostCandidates = (data.users || []).filter((u) => u.role === 'user');
+      sel.innerHTML = '<option value="">— Selecciona empleado —</option>';
+      this._hostCandidates.forEach((u) => {
         const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.name;
+        opt.value = u.id;
+        opt.textContent = `${u.full_name}${u.department ? ` (${u.department})` : ''}`;
         sel.appendChild(opt);
       });
-      if (currentVal) sel.value = currentVal;
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      sel.innerHTML = '<option value="">— Sin empleados visitables —</option>';
+      this._hostCandidates = [];
+    }
+  },
+
+  onHostSelected() {
+    const sel = document.getElementById('vHostUserId');
+    const user = this._hostCandidates?.find((u) => String(u.id) === String(sel?.value || ''));
+    if (!user) {
+      document.getElementById('vHostDocument').value = '';
+      document.getElementById('vHostJobTitle').value = '';
+      document.getElementById('vHostEmail').value = '';
+      document.getElementById('vHostPhone').value = '';
+      document.getElementById('vDestination').value = '';
+      document.getElementById('vSite').value = '';
+      document.getElementById('vBuilding').value = '';
+      return;
+    }
+    document.getElementById('vHostDocument').value = user.document_id || '';
+    document.getElementById('vHostJobTitle').value = user.job_title || '';
+    document.getElementById('vHostEmail').value = user.email || '';
+    document.getElementById('vHostPhone').value = user.phone || '';
+    document.getElementById('vDestination').value = user.department || '';
+    document.getElementById('vSite').value = user.site || '';
+    document.getElementById('vBuilding').value = user.building || '';
   },
 
   async loadCompanies() {

@@ -404,10 +404,6 @@
                       <label for="vName" class="form-label">Nombre completo <span class="text-danger">*</span></label>
                       <input type="text" class="form-control" id="vName" required maxlength="100">
                     </div>
-                    <div class="col-md-6 d-none" id="vCompanySelectGroup">
-                      <label for="vCompanyId" class="form-label">Empresa del sistema</label>
-                      <select class="form-select" id="vCompanyId"><option value="">— Selecciona —</option></select>
-                    </div>
                     <div class="col-md-6">
                       <label for="vCompany" class="form-label">Empresa del visitante <small class="text-muted">(texto libre)</small></label>
                       <input type="text" class="form-control" id="vCompany" maxlength="100" placeholder="Empresa de la que viene el visitante">
@@ -433,28 +429,30 @@
                   </h6>
                   <div class="row g-3">
                     <div class="col-md-6">
-                      <label for="vHostName" class="form-label">Nombre (visitado) <span class="text-danger">*</span></label>
-                      <input type="text" class="form-control" id="vHostName" maxlength="100" placeholder="Nombre del empleado o responsable">
+                      <label for="vHostUserId" class="form-label">Nombre (desplegable) <span class="text-danger">*</span></label>
+                      <select class="form-select" id="vHostUserId" required>
+                        <option value="">— Selecciona empleado —</option>
+                      </select>
                     </div>
                     <div class="col-md-6">
                       <label for="vHostDocument" class="form-label">DNI/NIE</label>
-                      <input type="text" class="form-control" id="vHostDocument" maxlength="30">
+                      <input type="text" class="form-control" id="vHostDocument" maxlength="30" readonly>
                     </div>
                     <div class="col-md-6">
                       <label for="vHostJobTitle" class="form-label">Cargo</label>
-                      <input type="text" class="form-control" id="vHostJobTitle" maxlength="100">
+                      <input type="text" class="form-control" id="vHostJobTitle" maxlength="100" readonly>
                     </div>
                     <div class="col-md-6">
                       <label for="vHostEmail" class="form-label">E-mail persona visitada</label>
-                      <input type="email" class="form-control" id="vHostEmail" placeholder="correo@empresa.com">
+                      <input type="email" class="form-control" id="vHostEmail" placeholder="correo@empresa.com" readonly>
                     </div>
                     <div class="col-md-6">
                       <label for="vHostPhone" class="form-label">Teléfono persona visitada</label>
-                      <input type="text" class="form-control" id="vHostPhone" maxlength="20">
+                      <input type="text" class="form-control" id="vHostPhone" maxlength="20" readonly>
                     </div>
                     <div class="col-md-6">
                       <label for="vSite" class="form-label">Oficina / Sede</label>
-                      <select class="form-select" id="vSite">
+                      <select class="form-select" id="vSite" disabled>
                         <option value="">— Sin especificar —</option>
                         <option value="Barcelona">Barcelona</option>
                         <option value="Madrid">Madrid</option>
@@ -463,7 +461,7 @@
                     </div>
                     <div class="col-md-6">
                       <label for="vDestination" class="form-label">Departamento / Destino <span class="text-danger">*</span></label>
-                      <input type="text" class="form-control" id="vDestination" required maxlength="100" list="destinationsList">
+                      <input type="text" class="form-control" id="vDestination" required maxlength="100" list="destinationsList" readonly>
                       <datalist id="destinationsList"></datalist>
                     </div>
                     <div class="col-md-6">
@@ -560,7 +558,7 @@
         <div id="pageUsers" class="page-content d-none">
           <div class="alert alert-light border small mb-3 py-2 mb-md-3" id="employeesPageHint">
             <i class="bi bi-info-circle text-primary me-1"></i>
-            <strong>Empleados:</strong> datos de contacto, departamento, sede y permisos (quién puede recibir visitas). Puedes <strong>descargar la plantilla Excel</strong> e <strong>importar</strong> muchos registros de una vez. Las cuentas de acceso al sistema se gestionan en <strong>Usuarios</strong>.
+            <strong>Empleados:</strong> datos de contacto, departamento y sede de personas que pueden recibir visitas. Puedes <strong>importar</strong> muchos registros de una vez desde Excel. Las cuentas de acceso al sistema se gestionan en <strong>Usuarios</strong>.
           </div>
           <div class="card shadow-sm">
             <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -572,9 +570,6 @@
                     <option value="">— Empresa destino —</option>
                   </select>
                 </div>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnDownloadUserTemplate" title="Descargar plantilla vacía">
-                  <i class="bi bi-download me-1"></i>Plantilla Excel
-                </button>
                 <button type="button" class="btn btn-outline-primary btn-sm" id="btnImportUsersExcel" title="Subir archivo .xlsx rellenado">
                   <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar Excel
                 </button>
@@ -797,6 +792,10 @@
             <p class="fw-semibold text-primary mb-2 user-employee-only"><i class="bi bi-briefcase me-1"></i>Cargo y ubicación</p>
             <div class="row g-2 mb-3 user-employee-only">
               <div class="col-md-4">
+                <label for="ufDocumentId" class="form-label">DNI / NIE</label>
+                <input type="text" class="form-control" id="ufDocumentId" maxlength="30" placeholder="Documento identificativo">
+              </div>
+              <div class="col-md-4">
                 <label for="ufJobLevel" class="form-label">Nivel de cargo</label>
                 <select class="form-select" id="ufJobLevel">
                   <option value="">— Sin especificar —</option>
@@ -806,7 +805,7 @@
                   <option value="operario_base">Operario / Base</option>
                 </select>
               </div>
-              <div class="col-md-8">
+              <div class="col-md-4">
                 <label for="ufJobTitle" class="form-label">Título del cargo</label>
                 <input type="text" class="form-control" id="ufJobTitle" maxlength="100" placeholder="Director General, Supervisor, etc.">
               </div>
@@ -840,19 +839,6 @@
               <div class="col-md-4">
                 <label for="ufBuilding" class="form-label">Edificio</label>
                 <input type="text" class="form-control" id="ufBuilding" maxlength="50" placeholder="Edificio 1, Edificio 2…">
-              </div>
-            </div>
-
-            <hr class="my-2 user-employee-only">
-            <!-- Sección: Permisos -->
-            <p class="fw-semibold text-primary mb-2 user-employee-only"><i class="bi bi-shield-check me-1"></i>Permisos de visita</p>
-            <div class="row g-2 mb-2 user-employee-only">
-              <div class="col-md-6">
-                <label for="ufCanReceiveVisits" class="form-label">¿Puede recibir visitas?</label>
-                <select class="form-select" id="ufCanReceiveVisits">
-                  <option value="true">Sí</option>
-                  <option value="false">No</option>
-                </select>
               </div>
             </div>
 

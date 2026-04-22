@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 
 const USER_ATTRS = [
   'id', 'username', 'full_name', 'role', 'company_id', 'active',
-  'phone', 'email', 'job_level', 'job_title', 'department',
+  'phone', 'email', 'document_id', 'job_level', 'job_title', 'department',
   'site', 'building', 'can_receive_visits', 'can_trigger_evacuation',
   'is_present', 'last_access_at', 'createdAt',
 ];
@@ -17,6 +17,14 @@ async function list(req, res, next) {
     if (!isSuperAdmin(req.user.role)) {
       where.company_id = req.user.company_id;
     }
+    if (isSuperAdmin(req.user.role) && req.query.company_id) {
+      where.company_id = parseInt(req.query.company_id, 10);
+    }
+    if (req.query.role) where.role = req.query.role;
+    if (req.query.active === 'true') where.active = true;
+    if (req.query.active === 'false') where.active = false;
+    if (req.query.visitable === 'true') where.can_receive_visits = true;
+    if (req.query.visitable === 'false') where.can_receive_visits = false;
 
     const users = await User.findAll({
       where,
@@ -51,7 +59,7 @@ async function create(req, res, next) {
   try {
     const {
       username, password, full_name, role,
-      phone, email, job_level, job_title, department,
+      phone, email, document_id, job_level, job_title, department,
       site, building, can_receive_visits, can_trigger_evacuation,
     } = req.body;
     const callerRole = req.user.role;
@@ -84,6 +92,7 @@ async function create(req, res, next) {
       active: true,
       phone: phone || null,
       email: email || null,
+      document_id: document_id || null,
       job_level: job_level || null,
       job_title: job_title || null,
       department: department || null,
@@ -110,7 +119,7 @@ async function update(req, res, next) {
 
     const updates = {};
     const allowed = [
-      'full_name', 'phone', 'email', 'job_level', 'job_title',
+      'full_name', 'phone', 'email', 'document_id', 'job_level', 'job_title',
       'department', 'site', 'building', 'can_receive_visits',
     ];
     allowed.forEach((f) => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
@@ -239,6 +248,10 @@ const HEADER_TO_FIELD = {
   titulo_cargo: 'job_title',
   puesto: 'job_title',
   job_title: 'job_title',
+  dni_nie: 'document_id',
+  dni: 'document_id',
+  documento: 'document_id',
+  document_id: 'document_id',
   nivel_cargo: 'job_level',
   job_level: 'job_level',
   sede: 'site',
@@ -286,6 +299,7 @@ async function downloadImportTemplate(req, res, next) {
       { header: 'contraseña', key: 'p', width: 14 },
       { header: 'nombre_completo', key: 'n', width: 28 },
       { header: 'email', key: 'e', width: 26 },
+      { header: 'dni_nie', key: 'di', width: 14 },
       { header: 'telefono', key: 't', width: 14 },
       { header: 'departamento', key: 'd', width: 22 },
       { header: 'cargo', key: 'c', width: 22 },
@@ -303,6 +317,7 @@ async function downloadImportTemplate(req, res, next) {
       p: 'Cambiar123',
       n: 'Juan Pérez García',
       e: 'juan.perez@empresa.com',
+      di: '12345678A',
       t: '+34 600 000 000',
       d: 'rrhh',
       c: 'Técnico de selección',
@@ -314,7 +329,7 @@ async function downloadImportTemplate(req, res, next) {
 
     ws.getCell('A3').value = 'Rellena una fila por empleado. Elimina la fila de ejemplo (jperez) antes de importar. Contraseñas: mínimo 8 caracteres. Usa los códigos exactos de la hoja "Referencia" para departamento, nivel_cargo y sede.';
     ws.getCell('A3').font = { italic: true, color: { argb: 'FF666666' } };
-    ws.mergeCells('A3:K3');
+    ws.mergeCells('A3:L3');
 
     const ref = wb.addWorksheet('Referencia');
     ref.getCell('A1').value = 'departamento (código)';
@@ -501,6 +516,7 @@ async function importExcel(req, res, next) {
           active: true,
           phone: data.phone || null,
           email,
+          document_id: data.document_id || null,
           job_level: jl.value,
           job_title: data.job_title || null,
           department: dep.value,
