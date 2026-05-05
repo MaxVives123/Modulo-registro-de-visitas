@@ -122,7 +122,7 @@ const App = {
 
     const companyTitle = document.getElementById('sidebarCompanyTitle');
     const companyName = user.company_name || user.company?.name || user.companyName || '';
-    if (!isSA && companyName) {
+    if (companyName) {
       if (companyTitle) {
         companyTitle.textContent = companyName;
         companyTitle.classList.remove('d-none');
