@@ -102,8 +102,9 @@ async function getRecentVisits(req, res, next) {
     const visits = await Visit.findAll({
       where,
       attributes: [
-        'id', 'visitor_name', 'visitor_company', 'destination', 'status',
-        'check_in', 'created_at',
+        'id', 'visitor_name', 'visitor_company', 'vehicle_plate',
+        'host_name', 'destination', 'status',
+        'check_in', 'check_out', 'created_at',
       ],
       order: [['created_at', 'DESC']],
       limit: 8,

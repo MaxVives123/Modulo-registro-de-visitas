@@ -639,8 +639,8 @@ const App = {
           ${v.vehicle_plate ? `<br><span class="badge bg-warning text-dark" title="Matrícula"><i class="bi bi-car-front"></i> ${this.esc(v.vehicle_plate)}</span>` : ''}
         </td>
         <td class="d-none d-lg-table-cell">
-          <strong>${this.esc(v.destination)}</strong><br>
-          <small class="text-muted">${this.esc(v.host_name || '—')}</small>
+          <strong>${this.esc(v.host_name || '—')}</strong><br>
+          <small class="text-muted">${this.esc(v.destination || '—')}</small>
         </td>
         <td>${this.statusBadge(v.status)}</td>
         <td class="d-none d-md-table-cell"><small>${this.formatDateTime(v.check_in || v.created_at) || '—'}</small></td>
@@ -710,8 +710,8 @@ const App = {
           ${v.vehicle_plate ? `<br><span class="badge bg-warning text-dark" title="Matrícula"><i class="bi bi-car-front"></i> ${this.esc(v.vehicle_plate)}</span>` : ''}
         </td>
         <td class="d-none d-lg-table-cell">
-          <strong>${this.esc(v.destination)}</strong><br>
-          <small class="text-muted">${this.esc(v.host_name || '—')}</small>
+          <strong>${this.esc(v.host_name || '—')}</strong><br>
+          <small class="text-muted">${this.esc(v.destination || '—')}</small>
         </td>
         <td>${this.statusBadge(v.status)}</td>
         <td class="d-none d-sm-table-cell"><small>${this.formatDateTime(v.check_in) || '—'}</small></td>
