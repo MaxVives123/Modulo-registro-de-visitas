@@ -80,6 +80,10 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .sidebar-company-title {
   font-size: 0.8rem;
   color: #fff;
+  font-weight: 600;
+  background: rgba(255,255,255,0.12);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
   text-align: center;
   width: 100%;
   white-space: nowrap;

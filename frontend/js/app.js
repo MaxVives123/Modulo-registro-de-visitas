@@ -122,13 +122,10 @@ const App = {
 
     const companyTitle = document.getElementById('sidebarCompanyTitle');
     const companyName = user.company_name || user.company?.name || user.companyName || '';
-    if (companyName) {
-      if (companyTitle) {
-        companyTitle.textContent = companyName;
-        companyTitle.classList.remove('d-none');
-      }
-    } else {
-      companyTitle?.classList.add('d-none');
+    if (companyTitle) {
+      // Fallback visible para detectar rápidamente cuando no llega company_name.
+      companyTitle.textContent = companyName || 'Empresa no identificada';
+      companyTitle.classList.remove('d-none');
     }
 
     // Etiqueta empresa en panel de empleados
