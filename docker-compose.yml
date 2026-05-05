@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-visitas_db}
       POSTGRES_USER: ${DB_USER:-visitas_admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-V1s1t4s_S3cur3_2024!}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -32,8 +32,8 @@ services:
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-visitas_db}
       DB_USER: ${DB_USER:-visitas_admin}
-      DB_PASSWORD: ${DB_PASSWORD:-V1s1t4s_S3cur3_2024!}
-      JWT_SECRET: ${JWT_SECRET:-x7K9mP2qR5vT8wA1dF4gH6jL0nB3cE9}
+      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:-CHANGE_ME_JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       APP_NAME: ${APP_NAME:-Sistema de Registro de Visitas}
       COMPANY_NAME: ${COMPANY_NAME:-Mi Empresa S.A.}
@@ -51,7 +51,7 @@ services:
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-visitas_db}
       DB_USER: ${DB_USER:-visitas_admin}
-      DB_PASSWORD: ${DB_PASSWORD:-V1s1t4s_S3cur3_2024!}
+      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_DB_PASSWORD}
     command: node backend/seeds/demo.js
     depends_on:
       db:

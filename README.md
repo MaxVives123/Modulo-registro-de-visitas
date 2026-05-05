@@ -1,237 +1,226 @@
 # Sistema de Registro de Visitas
 
-Sistema web profesional para el registro y control de visitantes en entornos empresariales.
+Aplicación web en producción para control de accesos de visitantes en entornos multiempresa, con dashboard operativo, credenciales QR y trazabilidad de entrada/salida.
 
-## Características
+## Estado del Proyecto
 
-- **Login seguro** con JWT y rate limiting
-- **Dashboard** con métricas en tiempo real, gráficos de actividad y distribución por destino
-- **CRUD completo** de visitas con validación frontend y backend
-- **Registro de entrada/salida** con timestamps
-- **Códigos QR** únicos por visita para check-out y validación
-- **Impresión de credenciales** optimizada para impresora térmica (58mm) y A4
-- **Búsqueda y filtros** avanzados con paginación
-- **Exportación CSV** con filtros aplicados
-- **Responsive** para escritorio, tablet y móvil
-- **Protección** contra SQL injection, XSS, CSRF
-- **Datos de demostración** incluidos
+- **Entorno objetivo:** Producción
+- **Arquitectura:** Backend API + frontend web servido por el backend
+- **Despliegue soportado:** Docker Compose local y Railway (Docker)
+- **CI:** GitHub Actions (quality + smoke de integración)
+
+## Funcionalidades de Negocio
+
+- Autenticación JWT con control de roles (`superadmin`, `admin`, `admin_empresa`, `user`)
+- Gestión de visitas con flujo completo:
+  - Alta de visita
+  - Entrada/salida con timestamps
+  - Estado operativo en dashboard
+- Dashboard con:
+  - métricas operativas
+  - actividad semanal/mensual
+  - recientes con filtro `Actuales / Todas`
+- Gestión de empleados y usuarios de plataforma separada
+- Importación de empleados por Excel
+- Credenciales QR y validación/check-out por QR
+- Exportaciones operativas (PDF/XLSX/CSV según endpoint)
+- Alcance por empresa (`company_id`) con aislamiento por rol
+
+## Stack Tecnológico
+
+- **Backend:** Node.js, Express, Sequelize
+- **Base de datos:** PostgreSQL 16
+- **Frontend:** HTML, Bootstrap 5, JavaScript vanilla, Chart.js
+- **Seguridad:** Helmet, rate limiting, `express-validator`, JWT
+- **Contenedores:** Docker, Docker Compose
+- **Calidad/CI:** Jest + GitHub Actions
+
+## Arquitectura (alto nivel)
+
+```
+Cliente Web (SPA ligera)
+        |
+        v
+Express API (backend/server.js)
+  ├─ controllers/ (lógica de negocio)
+  ├─ middleware/ (auth, validación, errores)
+  ├─ routes/     (API REST)
+  └─ models/     (Sequelize)
+        |
+        v
+PostgreSQL
+```
 
 ## Requisitos
 
-- **Docker** y **Docker Compose** instalados
-  - [Descargar Docker Desktop](https://www.docker.com/products/docker-desktop)
+- Docker Desktop (o Docker Engine + Compose)
+- Git
 
-## Inicio Rápido
+## Arranque Rápido
 
-### Windows
+### Opción 1: scripts del proyecto
 
+**Windows**
 ```bash
-# Doble clic en start.bat o ejecutar:
 start.bat
 ```
 
-### Linux / macOS
-
+**Linux/macOS**
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
 
-### Manual (cualquier OS)
+### Opción 2: manual
 
 ```bash
-# 1. Levantar base de datos y aplicación
-docker-compose up -d --build db app
-
-# 2. Esperar ~10 segundos a que PostgreSQL esté listo
-
-# 3. Cargar datos de demostración
-docker-compose run --rm seed
-
-# 4. Abrir en el navegador
-# http://localhost:3000
+# Desde raíz del repo
+docker compose up -d --build db app
+docker compose run --rm seed
 ```
 
-## Acceso
+Aplicación:
+- `http://localhost:3000`
 
-| URL | Descripción |
-|-----|-------------|
-| `http://localhost:3000` | Desde el mismo equipo |
-| `http://<TU-IP-LOCAL>:3000` | Desde otros dispositivos en la red |
-
-### Credenciales
+## Credenciales Demo
 
 | Usuario | Contraseña | Rol |
-|---------|-----------|-----|
+|---|---|---|
 | `admin` | `admin123` | Administrador |
 | `recepcion` | `recepcion123` | Usuario estándar |
 
-> Para encontrar tu IP local: `ipconfig` (Windows) o `hostname -I` (Linux)
-
-## Acceso desde otros dispositivos
-
-1. Asegúrate de que el firewall permita conexiones al puerto 3000
-2. Obtén la IP local del equipo servidor
-3. Desde cualquier dispositivo en la misma red, accede a `http://<IP>:3000`
-
-## Acceso desde Internet (Cloudflare Tunnel)
-
-Para que alguien fuera de tu red vea la app sin abrir el router:
-
-1. Instala el cliente: `winget install Cloudflare.cloudflared`
-2. Con Docker en marcha (`docker compose up -d`), ejecuta **`start-cloudflare-tunnel.bat`** o:
-   ```bash
-   cloudflared tunnel --url http://127.0.0.1:3000
-   ```
-3. Copia la URL `https://....trycloudflare.com` que muestra la consola y compártela.
-4. En tu **`.env`** añade **`TRUST_PROXY=1`** y reinicia el contenedor `app` (sin esto, el límite de peticiones puede bloquear el uso detrás del túnel).
-5. Opcional: **`APP_URL`** con la URL del túnel si necesitas forzar la base de los enlaces QR; si no, se deduce del Host al abrir la app por esa URL.
-
-Guía detallada (túnel rápido y dominio propio): [docs/CLOUDFLARE_TUNNEL.md](docs/CLOUDFLARE_TUNNEL.md)
-
-### Si en `127.0.0.1` funciona pero con el enlace (túnel, `localhost` o la IP de la red) no
-
-| Síntoma | Qué suele pasar |
-|--------|------------------|
-| **Túnel / dominio público** | Falta **`TRUST_PROXY=1`** en `.env` y reiniciar la app. |
-| **`localhost` vs `127.0.0.1`** | Son **orígenes distintos**: el token guardado en el navegador no se comparte; cierra sesión o borra datos del sitio y vuelve a entrar en la URL que uses siempre. |
-| **Solo desde otro PC o móvil** | Comprueba firewall en Windows (puerto 3000) y que uses la URL `http://TU_IP_LOCAL:3000`. |
-| **QR que no abre en el móvil** | No uses `APP_URL` con `localhost` si el teléfono no está en el mismo equipo; deja `APP_URL` vacío para deducir la URL o pon la URL pública real. |
-
-## Estructura del Proyecto
-
-```
-├── backend/
-│   ├── config/          # Configuración de base de datos
-│   ├── controllers/     # Lógica de negocio
-│   ├── middleware/       # Auth, validación, errores
-│   ├── models/          # Modelos Sequelize (User, Visit)
-│   ├── routes/          # Rutas API REST
-│   ├── seeds/           # Datos de demostración
-│   ├── utils/           # Logger, validadores
-│   └── server.js        # Punto de entrada
-├── frontend/
-│   ├── css/             # Estilos
-│   ├── js/              # Lógica frontend (SPA)
-│   └── index.html       # Página principal
-├── db/
-│   └── init.sql         # Script inicialización DB
-├── docker-compose.yml   # Orquestación de servicios
-├── Dockerfile           # Imagen de la aplicación
-├── railway.toml         # Config Railway (build Docker)
-├── .env                 # Variables de entorno
-├── start.bat            # Script inicio Windows
-├── start.sh             # Script inicio Linux/macOS
-├── start-cloudflare-tunnel.bat  # Túnel HTTPS (Cloudflare) hacia localhost:3000
-├── cloudflared/         # Ejemplo de config para túnel con dominio propio
-└── docs/CLOUDFLARE_TUNNEL.md
-```
-
-## API Endpoints
-
-### Autenticación
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/api/auth/login` | Iniciar sesión |
-| GET | `/api/auth/me` | Obtener usuario actual |
-
-### Visitas
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/visits` | Listar visitas (con filtros y paginación) |
-| GET | `/api/visits/:id` | Obtener visita por ID |
-| POST | `/api/visits` | Crear nueva visita |
-| PUT | `/api/visits/:id` | Actualizar visita |
-| DELETE | `/api/visits/:id` | Eliminar visita |
-| POST | `/api/visits/:id/checkin` | Registrar entrada |
-| POST | `/api/visits/:id/checkout` | Registrar salida |
-| GET | `/api/visits/destinations` | Listar destinos |
-| GET | `/api/visits/export/csv` | Exportar a CSV |
-
-### Dashboard
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/dashboard/stats` | Estadísticas generales |
-| GET | `/api/dashboard/activity` | Datos gráfico actividad |
-| GET | `/api/dashboard/destinations` | Datos gráfico destinos |
-| GET | `/api/dashboard/recent` | Visitas recientes |
-
-### QR
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/qr/generate/:id` | Generar QR de visita |
-| GET | `/api/qr/validate/:code` | Validar código QR (público) |
-| POST | `/api/qr/checkout/:code` | Check-out por QR (público) |
-| GET | `/api/qr/credential/:id` | Datos para credencial |
-
-## Stack Tecnológico
-
-- **Backend**: Node.js + Express
-- **Base de datos**: PostgreSQL 16 + Sequelize ORM
-- **Frontend**: HTML5 + Bootstrap 5 + Chart.js
-- **QR**: qrcode (npm)
-- **Auth**: JWT + bcrypt
-- **Seguridad**: Helmet, CORS, Rate Limiting, express-validator
-- **Contenedores**: Docker + Docker Compose
-
-## Comandos Útiles
-
-```bash
-# Ver logs de la aplicación
-docker-compose logs -f app
-
-# Reiniciar la aplicación
-docker-compose restart app
-
-# Detener todos los servicios
-docker-compose down
-
-# Detener y eliminar datos
-docker-compose down -v
-
-# Recargar datos de demo
-docker-compose run --rm seed
-```
+> Solo para entornos de prueba/demo. En producción, rotar usuarios y contraseñas.
 
 ## Variables de Entorno
 
-Edita el archivo `.env` para personalizar:
+Configurar en `.env`:
 
-| Variable | Descripción | Default |
-|----------|-------------|---------|
-| `PORT` | Puerto de la aplicación | `3000` |
-| `DB_HOST` | Host de PostgreSQL | `db` |
-| `DB_NAME` | Nombre de la base de datos | `visitas_db` |
-| `DB_USER` | Usuario de la base de datos | `visitas_admin` |
-| `DB_PASSWORD` | Contraseña de la base de datos | (ver .env) |
-| `JWT_SECRET` | Clave secreta para tokens JWT | (ver .env) |
-| `COMPANY_NAME` | Nombre de la empresa (credenciales) | `Mi Empresa S.A.` |
-| `APP_URL` | URL base de la aplicación | `http://localhost:3000` |
-| `DATABASE_URL` | Cadena Postgres (Railway/Render); si existe, prevalece sobre `DB_*` | — |
-| `DATABASE_SSL` | Con `DATABASE_URL`, usar SSL (`true` por defecto; pon `false` si la conexión falla) | — |
-| `TRUST_PROXY` | `1` detrás de proxy (Railway, túnel, etc.) | — |
+| Variable | Uso |
+|---|---|
+| `PORT` | Puerto HTTP de la app |
+| `HOST` | Host de bind (`0.0.0.0` recomendado en contenedor) |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Conexión PostgreSQL |
+| `DATABASE_URL` | DSN alternativa (si existe, prevalece sobre `DB_*`) |
+| `DATABASE_SSL` | SSL para `DATABASE_URL` |
+| `JWT_SECRET` | Secreto JWT (obligatorio en producción) |
+| `JWT_EXPIRES_IN` | Caducidad del token |
+| `APP_URL` | URL pública base para enlaces/QR |
+| `TRUST_PROXY` | `1` detrás de proxy/túnel/reverse proxy |
 
-## Deploy en Railway
+## Seguridad Operativa (Producción)
 
-1. Crea un proyecto en [Railway](https://railway.app), conecta este repositorio y añade el plugin **PostgreSQL**.
-2. En el servicio de la app, **Variables**: referencia `DATABASE_URL` desde la base de datos (o copia el valor que muestre Railway).
-3. Añade al menos: `JWT_SECRET` (cadena larga aleatoria), `NODE_ENV=production`, `TRUST_PROXY=1`.
-4. Opcional: `APP_URL` con la URL pública `https://…` que te asigne Railway (QR y enlaces coherentes).
-5. Tras el primer deploy, ejecuta el seed si quieres datos demo: en Railway abre una shell o un job one-off con `node backend/seeds/demo.js` (mismas variables que la app).
+- Cambiar `JWT_SECRET` por uno largo y único
+- Definir `DB_PASSWORD` y `JWT_SECRET` en entorno; no depender de valores por defecto de `docker-compose.yml`
+- No reutilizar credenciales demo
+- Mantener `TRUST_PROXY=1` cuando hay proxy/túnel
+- Revisar límites de rate limiting según volumen real
+- Evitar exposición directa de DB al exterior
+- Usar HTTPS en entorno público
 
-El archivo `railway.toml` fuerza build por `Dockerfile`.
+## CI (GitHub Actions)
 
-### Subir el código a GitHub (primer push)
+Workflow: `.github/workflows/ci.yml`
 
-Si este proyecto es un repo nuevo en tu máquina:
+Se ejecuta en `push` y `pull_request` a `main`:
+
+1. **Backend quality checks**
+   - `npm ci`
+   - `npm run lint --if-present`
+   - `npm test --if-present`
+   - smoke check de módulos críticos
+
+2. **Docker integration smoke**
+   - `docker compose up -d --build db app`
+   - espera de `/api/health`
+   - logs automáticos en fallo
+   - cleanup de contenedores
+
+## Testing Local
 
 ```bash
-cd "ruta/al/Modulo Registro de Visitas"
-git remote add origin https://github.com/TU_USUARIO/TU_REPO.git
-git push -u origin main
+cd backend
+npm ci
+npm test
 ```
 
-(Crea antes el repositorio vacío en GitHub, sin README, o usa el que ya tengas conectado a Railway.)
+## Estructura del Repositorio
+
+```
+backend/
+  config/
+  controllers/
+  middleware/
+  models/
+  routes/
+  seeds/
+  tests/
+  utils/
+  server.js
+frontend/
+  css/
+  js/
+  index.html
+db/
+  init.sql
+.github/workflows/
+  ci.yml
+docker-compose.yml
+Dockerfile
+railway.toml
+```
+
+## Endpoints Principales
+
+### Auth
+- `POST /api/auth/login`
+
+### Dashboard
+- `GET /api/dashboard/stats`
+- `GET /api/dashboard/activity`
+- `GET /api/dashboard/destinations`
+- `GET /api/dashboard/recent`
+
+### Visitas
+- `GET /api/visits`
+- `GET /api/visits/:id`
+- `POST /api/visits`
+- `PUT /api/visits/:id`
+- `DELETE /api/visits/:id`
+- `POST /api/visits/:id/checkin`
+- `POST /api/visits/:id/checkout`
+
+### Usuarios / Empleados
+- `GET /api/users`
+- `POST /api/users`
+- `PUT /api/users/:id`
+- `PUT /api/users/:id/visitable`
+- `POST /api/users/import`
+
+### QR
+- `GET /api/qr/generate/:id`
+- `GET /api/qr/validate/:code`
+- `POST /api/qr/checkout/:code`
+- `GET /api/qr/credential/:id`
+
+## Despliegue en Railway
+
+1. Conectar repo en Railway
+2. Añadir PostgreSQL
+3. Configurar variables (`DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`, `TRUST_PROXY=1`)
+4. Deploy por Docker (`railway.toml` + `Dockerfile`)
+5. (Opcional) seed inicial con `node backend/seeds/demo.js`
+
+## Operación y Soporte
+
+Comandos útiles:
+
+```bash
+docker compose logs -f app
+docker compose restart app
+docker compose down
+docker compose down -v
+docker compose run --rm seed
+```
 
 ## Licencia
 
