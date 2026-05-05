@@ -272,14 +272,15 @@
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0 align-middle">
                   <thead class="table-light">
                     <tr>
                       <th>Visitante</th>
-                      <th class="d-none d-md-table-cell">Empresa visitante</th>
                       <th class="d-none d-lg-table-cell">Destino</th>
                       <th>Estado</th>
-                      <th class="d-none d-sm-table-cell">Día y hora</th>
+                      <th class="d-none d-md-table-cell">Entrada</th>
+                      <th>Salida</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="recentVisitsTable"></tbody>
@@ -319,10 +320,6 @@
                   <label class="form-label small fw-semibold">Hasta</label>
                   <input type="date" class="form-control" id="filterDateTo">
                 </div>
-                <div class="col-6 col-md-2">
-                  <label class="form-label small fw-semibold">Matrícula</label>
-                  <input type="text" class="form-control" id="filterPlate" placeholder="1234-ABC" maxlength="20" autocomplete="off">
-                </div>
                 <div class="col-12 col-md-2">
                   <label class="form-label small fw-semibold d-none d-md-block">&nbsp;</label>
                   <div class="d-flex gap-1">
@@ -359,12 +356,11 @@
                 <table class="table table-hover mb-0 align-middle">
                   <thead class="table-light">
                     <tr>
-                      <th>ID</th>
                       <th>Visitante</th>
-                      <th class="d-none d-md-table-cell">Empresa</th>
                       <th class="d-none d-lg-table-cell">Destino</th>
                       <th>Estado</th>
                       <th class="d-none d-sm-table-cell">Entrada</th>
+                      <th>Salida</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
@@ -405,8 +401,8 @@
                       <input type="text" class="form-control" id="vName" required maxlength="100">
                     </div>
                     <div class="col-md-6">
-                      <label for="vCompany" class="form-label">Empresa del visitante <small class="text-muted">(texto libre)</small></label>
-                      <input type="text" class="form-control" id="vCompany" maxlength="100" placeholder="Empresa de la que viene el visitante">
+                      <label for="vCompany" class="form-label">Empresa del visitante <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="vCompany" required maxlength="100" placeholder="Empresa de la que viene el visitante">
                     </div>
                     <div class="col-md-6">
                       <label for="vEmail" class="form-label">Email</label>

@@ -121,9 +121,10 @@ const App = {
     document.getElementById('sidebarIntegrationsItem')?.classList.toggle('d-none', !isSA);
 
     const companyTitle = document.getElementById('sidebarCompanyTitle');
-    if (!isSA && user.company_name) {
+    const companyName = user.company_name || user.company?.name || user.companyName || '';
+    if (!isSA && companyName) {
       if (companyTitle) {
-        companyTitle.textContent = user.company_name;
+        companyTitle.textContent = companyName;
         companyTitle.classList.remove('d-none');
       }
     } else {
@@ -470,7 +471,7 @@ const App = {
       notes: document.getElementById('vNotes').value.trim(),
     };
 
-    if (!data.visitor_name || !data.host_name || !data.destination || !data.purpose) {
+    if (!data.visitor_name || !data.visitor_company || !data.host_name || !data.destination || !data.purpose) {
       this.setVisitFormError('Completa todos los campos obligatorios', 'danger');
       return;
     }
@@ -628,17 +629,47 @@ const App = {
   renderRecentVisits(visits) {
     const tbody = document.getElementById('recentVisitsTable');
     if (!visits.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">No hay visitas recientes</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">No hay visitas recientes</td></tr>';
       return;
     }
 
     tbody.innerHTML = visits.map((v) => `
       <tr>
-        <td><strong>${this.esc(v.visitor_name)}</strong></td>
-        <td class="d-none d-md-table-cell">${this.esc(v.visitor_company || 'Particular')}</td>
-        <td class="d-none d-lg-table-cell">${this.esc(v.destination)}</td>
+        <td>
+          <strong>${this.esc(v.visitor_name)}</strong>
+          <br>
+          <small class="text-muted">${this.esc(v.visitor_company || '—')}</small>
+          ${v.vehicle_plate ? `<br><span class="badge bg-warning text-dark" title="Matrícula"><i class="bi bi-car-front"></i> ${this.esc(v.vehicle_plate)}</span>` : ''}
+        </td>
+        <td class="d-none d-lg-table-cell">
+          <strong>${this.esc(v.destination)}</strong><br>
+          <small class="text-muted">${this.esc(v.host_name || '—')}</small>
+        </td>
         <td>${this.statusBadge(v.status)}</td>
-        <td class="d-none d-sm-table-cell"><small>${this.formatDateTime(v.check_in || v.created_at)}</small></td>
+        <td class="d-none d-md-table-cell"><small>${this.formatDateTime(v.check_in || v.created_at) || '—'}</small></td>
+        <td>
+          ${v.check_out
+            ? `<small>${this.formatDateTime(v.check_out)}</small>`
+            : (v.status === 'checked_in'
+              ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
+              : '<small class="text-muted">—</small>')}
+        </td>
+        <td>
+          <div class="d-flex gap-1 flex-wrap align-items-center">
+            <button class="btn btn-outline-primary btn-action" title="Ver detalle" onclick="App.showVisitDetail(${v.id})">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-outline-success btn-action" title="Imprimir credencial" onclick="App.showCredentialAndPrint(${v.id})">
+              <i class="bi bi-printer"></i>
+            </button>
+            <button class="btn btn-outline-secondary btn-action" title="Editar" onclick="App.editVisit(${v.id})">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-action" title="Eliminar" onclick="App.confirmDelete(${v.id}, '${this.esc(v.visitor_name)}')">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </td>
       </tr>
     `).join('');
   },
@@ -652,17 +683,16 @@ const App = {
       status: document.getElementById('filterStatus')?.value || '',
       date_from: document.getElementById('filterDateFrom')?.value || '',
       date_to: document.getElementById('filterDateTo')?.value || '',
-      vehicle_plate: document.getElementById('filterPlate')?.value || '',
     };
 
     const tbody = document.getElementById('visitsTable');
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
 
     try {
       const data = await API.getVisits(params);
       this.renderVisitsTable(data.visits, data.pagination);
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar visitas</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error al cargar visitas</td></tr>';
     }
   },
 
@@ -670,26 +700,33 @@ const App = {
     const tbody = document.getElementById('visitsTable');
 
     if (!visits.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No se encontraron visitas</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No se encontraron visitas</td></tr>';
       this.renderPagination(pagination);
       return;
     }
 
     tbody.innerHTML = visits.map((v) => `
       <tr>
-        <td><small class="text-muted">#${v.id}</small></td>
         <td>
           <strong>${this.esc(v.visitor_name)}</strong><br>
-          <small class="text-muted">${this.esc(v.visitor_company || v.visitor_email || '—')}</small>
+          <small class="text-muted">${this.esc(v.visitor_company || '—')}</small>
           ${v.vehicle_plate ? `<br><span class="badge bg-warning text-dark" title="Matrícula"><i class="bi bi-car-front"></i> ${this.esc(v.vehicle_plate)}</span>` : ''}
         </td>
-        <td class="d-none d-md-table-cell">${this.esc(v.visitor_company || '—')}</td>
-        <td class="d-none d-lg-table-cell">${this.esc(v.destination)}</td>
+        <td class="d-none d-lg-table-cell">
+          <strong>${this.esc(v.destination)}</strong><br>
+          <small class="text-muted">${this.esc(v.host_name || '—')}</small>
+        </td>
         <td>${this.statusBadge(v.status)}</td>
-        <td class="d-none d-sm-table-cell"><small>${this.formatDateTime(v.check_in)}</small></td>
+        <td class="d-none d-sm-table-cell"><small>${this.formatDateTime(v.check_in) || '—'}</small></td>
+        <td>
+          ${v.check_out
+            ? `<small>${this.formatDateTime(v.check_out)}</small>`
+            : (v.status === 'checked_in'
+              ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
+              : '<small class="text-muted">—</small>')}
+        </td>
         <td>
           <div class="d-flex gap-1 flex-wrap align-items-center">
-            ${v.status === 'checked_in' ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>` : ''}
             <button class="btn btn-outline-primary btn-action" title="Ver detalle" onclick="App.showVisitDetail(${v.id})">
               <i class="bi bi-eye"></i>
             </button>
@@ -768,8 +805,6 @@ const App = {
     document.getElementById('filterStatus').value = '';
     document.getElementById('filterDateFrom').value = '';
     document.getElementById('filterDateTo').value = '';
-    const filterPlate = document.getElementById('filterPlate');
-    if (filterPlate) filterPlate.value = '';
   },
 
   getVisitExportParams() {
@@ -778,7 +813,6 @@ const App = {
       status: document.getElementById('filterStatus')?.value || '',
       date_from: document.getElementById('filterDateFrom')?.value || '',
       date_to: document.getElementById('filterDateTo')?.value || '',
-      vehicle_plate: document.getElementById('filterPlate')?.value?.trim() || '',
     };
   },
 
@@ -1173,7 +1207,7 @@ const App = {
           <div class="d-flex gap-1 flex-wrap">
             <button class="btn btn-outline-primary btn-action" title="Editar" onclick="App.showUserForm(${u.id}, { fromPlatform: true })"><i class="bi bi-pencil"></i></button>
             <button class="btn btn-outline-warning btn-action" title="Cambiar contraseña" onclick="App.showChangePassword(${u.id})"><i class="bi bi-key"></i></button>
-            ${u.active ? `<button class="btn btn-outline-danger btn-action" title="Desactivar" onclick="App.deactivateUser(${u.id}, '${this.esc(u.username)}')"><i class="bi bi-person-slash"></i></button>` : ''}
+            <button class="btn btn-outline-${u.active ? 'danger' : 'success'} btn-action" title="${u.active ? 'Desactivar' : 'Activar'}" onclick="App.togglePlatformUserActive(${u.id}, ${u.active ? 'false' : 'true'})"><i class="bi bi-${u.active ? 'person-slash' : 'person-check'}"></i></button>
           </div>
         </td>
       </tr>
@@ -1392,6 +1426,16 @@ const App = {
       this._reloadUserManagementLists();
     } catch (err) {
       this.toast(err.error || (isPlat ? 'Error al desactivar usuario' : 'Error al desactivar empleado'), 'danger');
+    }
+  },
+
+  async togglePlatformUserActive(id, active) {
+    try {
+      await API.updateUser(id, { active });
+      this.toast(`Usuario ${active ? 'activado' : 'desactivado'}`, 'success');
+      this.loadPlatformUsers();
+    } catch (err) {
+      this.toast(err?.error || 'Error al actualizar estado del usuario', 'danger');
     }
   },
 
