@@ -85,11 +85,16 @@ async function create(req, res, next) {
       ? (can_trigger_evacuation ?? false)
       : false;
 
+    // Los empleados (role=user) no necesitan contraseña para acceder; se genera una aleatoria si no se proporciona
+    const effectivePassword = password || require('crypto').randomBytes(16).toString('hex');
+
+    const activeValue = req.body.active !== undefined ? (req.body.active === 'true' || req.body.active === true) : true;
+
     const user = await User.create({
-      username, password, full_name,
+      username, password: effectivePassword, full_name,
       role: assignedRole,
       company_id: companyId,
-      active: true,
+      active: activeValue,
       phone: phone || null,
       email: email || null,
       document_id: document_id || null,

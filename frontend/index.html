@@ -6,7 +6,7 @@
   <title>Sistema de Registro de Visitas</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="css/styles.css?v=21" rel="stylesheet">
+  <link href="css/styles.css?v=22" rel="stylesheet">
 </head>
 <body>
   <!-- Login / Register Screen -->
@@ -16,19 +16,19 @@
     <div id="loginCard" class="login-card">
       <div class="login-header">
         <div class="login-icon"><i class="bi bi-shield-lock-fill"></i></div>
-        <h2>Registro de Visitas</h2>
-        <p class="text-muted">Inicia sesión para continuar</p>
+        <h2 data-i18n="login_title">Registro de Visitas</h2>
+        <p class="text-muted" data-i18n="login_subtitle">Inicia sesión para continuar</p>
       </div>
       <form id="loginForm" novalidate>
         <div class="mb-3">
-          <label for="loginUser" class="form-label">Usuario</label>
+          <label for="loginUser" class="form-label" data-i18n="login_user">Usuario</label>
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-person"></i></span>
             <input type="text" class="form-control" id="loginUser" placeholder="Ingresa tu usuario" required autocomplete="username">
           </div>
         </div>
         <div class="mb-3">
-          <label for="loginPass" class="form-label">Contraseña</label>
+          <label for="loginPass" class="form-label" data-i18n="login_password">Contraseña</label>
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-key"></i></span>
             <input type="password" class="form-control" id="loginPass" placeholder="Ingresa tu contraseña" required autocomplete="current-password">
@@ -37,14 +37,9 @@
         <div id="loginError" class="alert alert-danger d-none"></div>
         <button type="submit" class="btn btn-primary w-100 btn-lg" id="loginBtn">
           <span class="spinner-border spinner-border-sm d-none me-2" id="loginSpinner"></span>
-          Iniciar Sesión
+          <span data-i18n="login_btn">Iniciar Sesión</span>
         </button>
       </form>
-      <hr class="my-3">
-      <p class="text-center small text-muted mb-0">
-        ¿Tu empresa aún no tiene cuenta?
-        <a href="#" id="showRegisterLink" class="fw-semibold">Registrar empresa</a>
-      </p>
     </div>
 
     <!-- REGISTER COMPANY CARD -->
@@ -124,41 +119,47 @@
       <ul class="sidebar-nav">
         <li>
           <a href="#" class="sidebar-link active" data-page="dashboard">
-            <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+            <i class="bi bi-speedometer2"></i><span data-i18n="nav_dashboard">Dashboard</span>
           </a>
         </li>
         <li>
           <a href="#" class="sidebar-link" data-page="visits">
-            <i class="bi bi-people"></i><span>Visitas</span>
+            <i class="bi bi-people"></i><span data-i18n="nav_visits">Visitas</span>
           </a>
         </li>
         <li>
           <a href="#" class="sidebar-link" data-page="new-visit">
-            <i class="bi bi-person-plus"></i><span>Nueva Visita</span>
+            <i class="bi bi-person-plus"></i><span data-i18n="nav_new_visit">Nueva Visita</span>
           </a>
         </li>
         <li id="sidebarUsersItem" class="d-none">
           <a href="#" class="sidebar-link" data-page="users">
-            <i class="bi bi-people-fill"></i><span>Empleados</span>
+            <i class="bi bi-people-fill"></i><span data-i18n="nav_users">Empleados</span>
           </a>
         </li>
         <li id="sidebarPlatformUsersItem" class="d-none">
           <a href="#" class="sidebar-link" data-page="platform-users">
-            <i class="bi bi-person-badge"></i><span>Usuarios</span>
+            <i class="bi bi-person-badge"></i><span data-i18n="nav_platform_users">Usuarios</span>
           </a>
         </li>
         <li id="sidebarCompaniesItem" class="d-none">
           <a href="#" class="sidebar-link" data-page="companies">
-            <i class="bi bi-building"></i><span>Empresas</span>
+            <i class="bi bi-building"></i><span data-i18n="nav_companies">Empresas</span>
           </a>
         </li>
         <li id="sidebarIntegrationsItem" class="d-none">
           <a href="#" class="sidebar-link" data-page="integrations">
-            <i class="bi bi-plug-fill"></i><span>Integraciones</span>
+            <i class="bi bi-plug-fill"></i><span data-i18n="nav_integrations">Integraciones</span>
           </a>
         </li>
       </ul>
-      <div class="sidebar-footer"></div>
+      <div class="sidebar-footer">
+        <div class="d-flex justify-content-center gap-1 py-2">
+          <button class="btn btn-sm btn-outline-light lang-btn" data-lang="es" onclick="setLang('es')">ES</button>
+          <button class="btn btn-sm btn-outline-light lang-btn" data-lang="ca" onclick="setLang('ca')">CA</button>
+          <button class="btn btn-sm btn-outline-light lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+        </div>
+      </div>
     </nav>
 
     <!-- Main Content -->
@@ -190,7 +191,7 @@
               <i class="bi bi-person-circle me-1"></i><span id="navUserName">Admin</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-              <li><button class="dropdown-item text-danger" id="logoutBtn"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</button></li>
+              <li><button class="dropdown-item text-danger" id="logoutBtn"><i class="bi bi-box-arrow-right me-2"></i><span data-i18n="nav_logout">Cerrar sesión</span></button></li>
             </ul>
           </div>
         </div>
@@ -206,7 +207,7 @@
                 <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
                 <div class="stat-info">
                   <div class="stat-value" id="statTotal">0</div>
-                  <div class="stat-label">Total Visitas (histórico)</div>
+                  <div class="stat-label" data-i18n="dash_stat_total">Total Visitas (histórico)</div>
                 </div>
               </div>
             </div>
@@ -215,7 +216,7 @@
                 <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
                 <div class="stat-info">
                   <div class="stat-value" id="statToday">0</div>
-                  <div class="stat-label">Visitas Hoy</div>
+                  <div class="stat-label" data-i18n="dash_stat_today">Visitas Hoy</div>
                 </div>
               </div>
             </div>
@@ -224,7 +225,7 @@
                 <div class="stat-icon"><i class="bi bi-person-check-fill"></i></div>
                 <div class="stat-info">
                   <div class="stat-value" id="statInside">0</div>
-                  <div class="stat-label">En Instalaciones</div>
+                  <div class="stat-label" data-i18n="dash_stat_inside">En Instalaciones</div>
                 </div>
               </div>
             </div>
@@ -233,7 +234,7 @@
                 <div class="stat-icon"><i class="bi bi-box-arrow-right"></i></div>
                 <div class="stat-info">
                   <div class="stat-value" id="statCheckouts">0</div>
-                  <div class="stat-label">Salidas Hoy</div>
+                  <div class="stat-label" data-i18n="dash_stat_checkouts">Salidas Hoy</div>
                 </div>
               </div>
             </div>
@@ -245,8 +246,8 @@
                 <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
                   <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Actividad de Visitas</h6>
                   <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-primary active" id="btnActivityWeek">Última semana</button>
-                    <button class="btn btn-outline-primary" id="btnActivityMonth">Último mes</button>
+                    <button class="btn btn-outline-primary active" id="btnActivityWeek" data-i18n="dash_week">Última semana</button>
+                    <button class="btn btn-outline-primary" id="btnActivityMonth" data-i18n="dash_month">Último mes</button>
                   </div>
                 </div>
                 <div class="card-body">
@@ -268,10 +269,10 @@
 
           <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Visitas en instalación (actual)</h6>
+              <h6 class="mb-0" id="recentVisitsTitle"><i class="bi bi-clock-history me-2"></i>Visitas en instalación (actual)</h6>
               <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-secondary" id="btnRecentCurrent">Actuales</button>
-                <button class="btn btn-sm btn-outline-primary" id="btnRecentAll">Todas</button>
+                <button class="btn btn-sm btn-outline-secondary" id="btnRecentCurrent" data-i18n="dash_recent_current">Actuales</button>
+                <button class="btn btn-sm btn-outline-primary" id="btnRecentAll" data-i18n="dash_recent_all">Todas</button>
               </div>
             </div>
             <div class="card-body p-0">
@@ -279,12 +280,12 @@
                 <table class="table table-hover mb-0 align-middle">
                   <thead class="table-light">
                     <tr>
-                      <th>Visitante</th>
-                      <th class="d-none d-lg-table-cell">Destino</th>
-                      <th>Estado</th>
-                      <th class="d-none d-md-table-cell">Entrada</th>
-                      <th>Salida</th>
-                      <th>Acciones</th>
+                      <th data-i18n="visits_col_visitor">Visitante</th>
+                      <th class="d-none d-lg-table-cell" data-i18n="visits_col_host">Destino</th>
+                      <th data-i18n="visits_col_status">Estado</th>
+                      <th class="d-none d-md-table-cell" data-i18n="visits_col_checkin">Entrada</th>
+                      <th data-i18n="visits_col_checkout">Salida</th>
+                      <th data-i18n="visits_col_actions">Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="recentVisitsTable"></tbody>
@@ -300,28 +301,28 @@
             <div class="card-body">
               <div class="row g-2 align-items-end">
                 <div class="col-12 col-md-4">
-                  <label class="form-label small fw-semibold">Buscar</label>
+                  <label class="form-label small fw-semibold" data-i18n="visits_btn_search">Buscar</label>
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" id="searchInput" placeholder="Nombre, empresa, destino...">
+                    <input type="text" class="form-control" id="searchInput" data-i18n-placeholder="visits_search_placeholder" placeholder="Nombre, empresa, destino...">
                   </div>
                 </div>
                 <div class="col-6 col-md-2">
-                  <label class="form-label small fw-semibold">Estado</label>
+                  <label class="form-label small fw-semibold" data-i18n="visits_filter_status">Estado</label>
                   <select class="form-select" id="filterStatus">
-                    <option value="">Todos</option>
-                    <option value="checked_in">En instalaciones</option>
-                    <option value="checked_out">Salida registrada</option>
-                    <option value="pending">Pendiente</option>
-                    <option value="cancelled">Cancelada</option>
+                    <option value="" data-i18n="visits_filter_all">Todos</option>
+                    <option value="pending" data-i18n="status_pending">Pendiente</option>
+                    <option value="checked_in" data-i18n="status_checked_in">En instalaciones</option>
+                    <option value="checked_out" data-i18n="status_checked_out">Salida registrada</option>
+                    <option value="cancelled" data-i18n="status_cancelled">Cancelada</option>
                   </select>
                 </div>
                 <div class="col-6 col-md-2">
-                  <label class="form-label small fw-semibold">Desde</label>
+                  <label class="form-label small fw-semibold" data-i18n="visits_filter_from">Desde</label>
                   <input type="date" class="form-control" id="filterDateFrom">
                 </div>
                 <div class="col-6 col-md-2">
-                  <label class="form-label small fw-semibold">Hasta</label>
+                  <label class="form-label small fw-semibold" data-i18n="visits_filter_to">Hasta</label>
                   <input type="date" class="form-control" id="filterDateTo">
                 </div>
                 <div class="col-12 col-md-2">
@@ -351,7 +352,7 @@
                   <i class="bi bi-filetype-pdf me-1"></i>PDF
                 </button>
               </div>
-              <button type="button" class="btn btn-primary btn-sm" onclick="App.navigate('new-visit')">
+              <button type="button" class="btn btn-primary btn-sm" data-i18n="visits_btn_new" onclick="App.navigate('new-visit')">
                 <i class="bi bi-plus-lg me-1"></i>Nueva Visita
               </button>
             </div>
@@ -360,12 +361,12 @@
                 <table class="table table-hover mb-0 align-middle">
                   <thead class="table-light">
                     <tr>
-                      <th>Visitante</th>
-                      <th class="d-none d-lg-table-cell">Destino</th>
-                      <th>Estado</th>
-                      <th class="d-none d-sm-table-cell">Entrada</th>
-                      <th>Salida</th>
-                      <th>Acciones</th>
+                      <th data-i18n="visits_col_visitor">Visitante</th>
+                      <th class="d-none d-lg-table-cell" data-i18n="visits_col_host">Destino</th>
+                      <th data-i18n="visits_col_status">Estado</th>
+                      <th class="d-none d-sm-table-cell" data-i18n="visits_col_checkin">Entrada</th>
+                      <th data-i18n="visits_col_checkout">Salida</th>
+                      <th data-i18n="visits_col_actions">Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="visitsTable">
@@ -397,27 +398,31 @@
 
                 <div class="border rounded-3 p-3 mb-3 bg-light">
                   <h6 class="text-primary mb-3 pb-2 border-bottom">
-                    <i class="bi bi-person-badge me-2"></i>Persona visitante
+                    <i class="bi bi-person-badge me-2"></i><span data-i18n="visit_section_visitor">Persona visitante</span>
                   </h6>
                   <div class="row g-3">
                     <div class="col-md-6">
-                      <label for="vName" class="form-label">Nombre completo <span class="text-danger">*</span></label>
+                      <label for="vName" class="form-label" data-i18n="visit_field_name">Nombre completo <span class="text-danger">*</span></label>
                       <input type="text" class="form-control" id="vName" required maxlength="100">
                     </div>
                     <div class="col-md-6">
-                      <label for="vCompany" class="form-label">Empresa del visitante <span class="text-danger">*</span></label>
+                      <label for="vCompany" class="form-label" data-i18n="visit_field_company">Empresa del visitante <span class="text-danger">*</span></label>
                       <input type="text" class="form-control" id="vCompany" required maxlength="100" placeholder="Empresa de la que viene el visitante">
                     </div>
                     <div class="col-md-6">
-                      <label for="vEmail" class="form-label">Email</label>
+                      <label for="vEmail" class="form-label" data-i18n="visit_field_email">Email</label>
                       <input type="email" class="form-control" id="vEmail">
                     </div>
                     <div class="col-md-6">
-                      <label for="vPhone" class="form-label">Teléfono</label>
+                      <label for="vPhone" class="form-label" data-i18n="visit_field_phone">Teléfono</label>
                       <input type="text" class="form-control" id="vPhone" maxlength="20">
                     </div>
                     <div class="col-md-6">
-                      <label for="vVehiclePlate" class="form-label">Matrícula del vehículo</label>
+                      <label for="vVisitorDocument" class="form-label" data-i18n="visit_field_document">DNI / NIE</label>
+                      <input type="text" class="form-control" id="vVisitorDocument" maxlength="30" placeholder="12345678A">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="vVehiclePlate" class="form-label" data-i18n="visit_field_plate">Matrícula del vehículo</label>
                       <input type="text" class="form-control" id="vVehiclePlate" maxlength="20" placeholder="1234-ABC">
                     </div>
                   </div>
@@ -425,34 +430,30 @@
 
                 <div class="border rounded-3 p-3 mb-3 border-primary border-opacity-25">
                   <h6 class="text-primary mb-3 pb-2 border-bottom">
-                    <i class="bi bi-people me-2"></i>Persona o área visitada
+                    <i class="bi bi-people me-2"></i><span data-i18n="visit_section_host">Persona o área visitada</span>
                   </h6>
                   <div class="row g-3">
                     <div class="col-md-6">
-                      <label for="vHostUserId" class="form-label">Nombre (desplegable) <span class="text-danger">*</span></label>
+                      <label for="vHostUserId" class="form-label" data-i18n="visit_field_host_name">Nombre empleado <span class="text-danger">*</span></label>
                       <select class="form-select" id="vHostUserId" required>
                         <option value="">— Selecciona empleado —</option>
                       </select>
                     </div>
                     <div class="col-md-6">
-                      <label for="vHostDocument" class="form-label">DNI/NIE</label>
-                      <input type="text" class="form-control" id="vHostDocument" maxlength="30" readonly>
+                      <label for="vHostJobTitle" class="form-label" data-i18n="visit_field_host_job">Cargo</label>
+                      <input type="text" class="form-control bg-light" id="vHostJobTitle" maxlength="100" readonly>
                     </div>
                     <div class="col-md-6">
-                      <label for="vHostJobTitle" class="form-label">Cargo</label>
-                      <input type="text" class="form-control" id="vHostJobTitle" maxlength="100" readonly>
+                      <label for="vHostEmail" class="form-label" data-i18n="visit_field_host_email">E-mail persona visitada</label>
+                      <input type="email" class="form-control bg-light" id="vHostEmail" placeholder="correo@empresa.com" readonly>
                     </div>
                     <div class="col-md-6">
-                      <label for="vHostEmail" class="form-label">E-mail persona visitada</label>
-                      <input type="email" class="form-control" id="vHostEmail" placeholder="correo@empresa.com" readonly>
+                      <label for="vHostPhone" class="form-label" data-i18n="visit_field_host_phone">Teléfono persona visitada</label>
+                      <input type="text" class="form-control bg-light" id="vHostPhone" maxlength="20" readonly>
                     </div>
                     <div class="col-md-6">
-                      <label for="vHostPhone" class="form-label">Teléfono persona visitada</label>
-                      <input type="text" class="form-control" id="vHostPhone" maxlength="20" readonly>
-                    </div>
-                    <div class="col-md-6">
-                      <label for="vSite" class="form-label">Oficina / Sede</label>
-                      <select class="form-select" id="vSite" disabled>
+                      <label for="vSite" class="form-label" data-i18n="visit_field_site">Oficina / Sede</label>
+                      <select class="form-select bg-light" id="vSite" disabled>
                         <option value="">— Sin especificar —</option>
                         <option value="Barcelona">Barcelona</option>
                         <option value="Madrid">Madrid</option>
@@ -460,16 +461,16 @@
                       </select>
                     </div>
                     <div class="col-md-6">
-                      <label for="vDestination" class="form-label">Departamento / Destino <span class="text-danger">*</span></label>
-                      <input type="text" class="form-control" id="vDestination" required maxlength="100" list="destinationsList" readonly>
+                      <label for="vDestination" class="form-label" data-i18n="visit_field_destination">Departamento / Destino</label>
+                      <input type="text" class="form-control bg-light" id="vDestination" maxlength="100" list="destinationsList" readonly>
                       <datalist id="destinationsList"></datalist>
                     </div>
                     <div class="col-md-6">
-                      <label for="vBuilding" class="form-label">Edificio</label>
+                      <label for="vBuilding" class="form-label" data-i18n="visit_field_building">Edificio</label>
                       <input type="text" class="form-control" id="vBuilding" maxlength="50" placeholder="Edificio 1, Edificio 2...">
                     </div>
                     <div class="col-md-6">
-                      <label for="vPurposeSelect" class="form-label">Motivo de la visita <span class="text-danger">*</span></label>
+                      <label for="vPurposeSelect" class="form-label" data-i18n="visit_field_purpose">Motivo de la visita <span class="text-danger">*</span></label>
                       <select class="form-select" id="vPurposeSelect">
                         <option value="Reunión">Reunión</option>
                         <option value="Mantenimiento">Mantenimiento</option>
@@ -484,7 +485,7 @@
                       <input type="text" class="form-control" id="vPurposeCustom" maxlength="255">
                     </div>
                     <div class="col-12">
-                      <label for="vNotes" class="form-label">Notas internas</label>
+                      <label for="vNotes" class="form-label" data-i18n="visit_field_notes">Notas internas</label>
                       <textarea class="form-control" id="vNotes" rows="2" maxlength="500" placeholder="Observaciones opcionales"></textarea>
                     </div>
                   </div>
@@ -492,7 +493,7 @@
 
                 <div class="row g-3">
                   <div class="col-12" id="signatureBlock">
-                    <label class="form-label">Firma del Visitante</label>
+                    <label class="form-label" data-i18n="visit_field_signature">Firma del Visitante</label>
                     <div class="signature-wrapper border rounded bg-white position-relative">
                       <canvas id="signatureCanvas"></canvas>
                       <button type="button" class="btn btn-sm btn-outline-secondary signature-clear-btn" id="clearSignatureBtn" title="Limpiar firma">
@@ -502,6 +503,22 @@
                     <small class="text-muted">Firme con el dedo o el ratón dentro del recuadro. Al firmar, acepta el almacenamiento de esta firma y datos de visita con fines de control de acceso.</small>
                   </div>
                 </div>
+                <div class="border rounded-3 p-3 mb-3 d-none" id="visitCheckInOutBlock">
+                  <h6 class="text-primary mb-3 pb-2 border-bottom">
+                    <i class="bi bi-clock me-2"></i><span data-i18n="visit_checkin_section">Fecha y hora de entrada / salida</span>
+                  </h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="vCheckIn" class="form-label" data-i18n="visit_checkin_label">Entrada</label>
+                      <input type="datetime-local" class="form-control" id="vCheckIn">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="vCheckOut" class="form-label" data-i18n="visit_checkout_label">Salida</label>
+                      <input type="datetime-local" class="form-control" id="vCheckOut">
+                    </div>
+                  </div>
+                </div>
+
                 <div class="border rounded p-3 bg-light mt-2 mb-0" id="visitFormExtras">
                   <div class="form-check form-switch mb-0">
                     <input class="form-check-input" type="checkbox" id="visitPrintAfterSave" checked>
@@ -514,7 +531,7 @@
                     <span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span>
                     <i class="bi bi-check-lg me-1"></i>Registrar Visita
                   </button>
-                  <button type="button" class="btn btn-outline-secondary" onclick="App.navigate('visits')">
+                  <button type="button" class="btn btn-outline-secondary" data-i18n="visit_btn_cancel" onclick="App.navigate('visits')">
                     <i class="bi bi-arrow-left me-1"></i>Cancelar
                   </button>
                 </div>
@@ -526,8 +543,8 @@
         <div id="pageCompanies" class="page-content d-none">
           <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <h6 class="mb-0"><i class="bi bi-building me-2"></i>Gestión de Empresas</h6>
-              <button class="btn btn-primary btn-sm" id="btnNewCompany">
+              <h6 class="mb-0" data-i18n="companies_title"><i class="bi bi-building me-2"></i>Gestión de Empresas</h6>
+              <button class="btn btn-primary btn-sm" id="btnNewCompany" data-i18n="companies_btn_new">
                 <i class="bi bi-plus-lg me-1"></i>Nueva Empresa
               </button>
             </div>
@@ -537,12 +554,12 @@
                   <thead class="table-light">
                     <tr>
                       <th>ID</th>
-                      <th>Nombre</th>
-                      <th class="d-none d-md-table-cell">RIF</th>
-                      <th class="d-none d-lg-table-cell">Email</th>
-                      <th class="d-none d-lg-table-cell">Teléfono</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
+                      <th data-i18n="company_field_name">Nombre</th>
+                      <th class="d-none d-md-table-cell" data-i18n="company_field_rif">RIF</th>
+                      <th class="d-none d-lg-table-cell" data-i18n="company_field_email">Email</th>
+                      <th class="d-none d-lg-table-cell" data-i18n="company_field_phone">Teléfono</th>
+                      <th data-i18n="users_col_status">Estado</th>
+                      <th data-i18n="users_col_actions">Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="companiesTable">
@@ -562,7 +579,7 @@
           </div>
           <div class="card shadow-sm">
             <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Empleados</h6>
+              <h6 class="mb-0" data-i18n="users_title"><i class="bi bi-people-fill me-2"></i>Empleados</h6>
               <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
                 <div id="usersImportCompanyWrap" class="d-none">
                   <label for="usersImportCompanyId" class="visually-hidden">Empresa destino importación</label>
@@ -570,11 +587,11 @@
                     <option value="">— Empresa destino —</option>
                   </select>
                 </div>
-                <button type="button" class="btn btn-outline-primary btn-sm" id="btnImportUsersExcel" title="Subir archivo .xlsx rellenado">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btnImportUsersExcel" data-i18n="users_btn_import" title="Subir archivo .xlsx rellenado">
                   <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar Excel
                 </button>
                 <input type="file" id="usersImportFileInput" class="d-none" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-                <button class="btn btn-primary btn-sm" id="btnNewUser">
+                <button class="btn btn-primary btn-sm" id="btnNewUser" data-i18n="users_btn_new">
                   <i class="bi bi-plus-lg me-1"></i>Nuevo empleado
                 </button>
               </div>
@@ -584,12 +601,12 @@
                 <table class="table table-hover mb-0 align-middle">
                   <thead class="table-light">
                     <tr>
-                      <th>Nombre</th>
-                      <th>Departamento</th>
-                      <th>Correo</th>
-                      <th>Teléfono</th>
-                      <th>Visitable</th>
-                      <th>Acciones</th>
+                      <th data-i18n="users_col_name">Nombre</th>
+                      <th data-i18n="users_col_dept">Departamento</th>
+                      <th data-i18n="users_col_email">Correo</th>
+                      <th data-i18n="users_col_phone">Teléfono</th>
+                      <th data-i18n="users_col_visitable">Visitable</th>
+                      <th data-i18n="users_col_actions">Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="usersTable">
@@ -619,12 +636,12 @@
                 <table class="table table-hover mb-0 align-middle">
                   <thead class="table-light">
                     <tr>
-                      <th>Usuario acceso</th>
-                      <th>Nombre</th>
-                      <th>Rol</th>
-                      <th>Estado</th>
-                      <th class="d-none d-md-table-cell">Creado</th>
-                      <th>Acciones</th>
+                      <th data-i18n="users_col_access">Usuario acceso</th>
+                      <th data-i18n="users_col_name">Nombre</th>
+                      <th data-i18n="users_col_role">Rol</th>
+                      <th data-i18n="users_col_status">Estado</th>
+                      <th class="d-none d-md-table-cell" data-i18n="users_col_created">Creado</th>
+                      <th data-i18n="users_col_actions">Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="platformUsersTable">
@@ -741,19 +758,19 @@
             <input type="hidden" id="userFormId">
 
             <!-- Sección: Acceso al sistema -->
-            <p class="fw-semibold text-primary mb-2"><i class="bi bi-lock me-1"></i>Credenciales de acceso</p>
+            <p class="fw-semibold text-primary mb-2" data-i18n="user_section_credentials"><i class="bi bi-lock me-1"></i>Credenciales de acceso</p>
             <div class="row g-2 mb-3">
               <div class="col-md-4">
-                <label for="ufUsername" class="form-label">Usuario <span class="text-danger">*</span></label>
+                <label for="ufUsername" class="form-label" data-i18n="user_field_username">Usuario <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="ufUsername" required maxlength="50" autocomplete="off">
               </div>
               <div class="col-md-4" id="ufPasswordGroup">
-                <label for="ufPassword" class="form-label">Contraseña <span class="text-danger">*</span></label>
+                <label for="ufPassword" class="form-label" data-i18n="user_field_password">Contraseña <span class="text-danger">*</span></label>
                 <input type="password" class="form-control" id="ufPassword" minlength="8" maxlength="100" autocomplete="new-password">
                 <small class="text-muted">Mín. 8 caracteres</small>
               </div>
               <div class="col-md-2 user-platform-only" id="ufRoleGroup">
-                <label for="ufRole" class="form-label">Rol</label>
+                <label for="ufRole" class="form-label" data-i18n="user_field_role">Rol</label>
                 <select class="form-select" id="ufRole"></select>
               </div>
               <div class="col-md-2 d-none" id="ufRoleReadonly">
@@ -761,7 +778,7 @@
                 <p class="form-control-plaintext mb-0 border rounded px-2 py-1 bg-light" id="ufRoleLabel">—</p>
               </div>
               <div class="col-md-2 d-none" id="ufActiveGroup">
-                <label class="form-label">Estado</label>
+                <label class="form-label" data-i18n="user_field_status">Estado</label>
                 <select class="form-select" id="ufActive">
                   <option value="true">Activo</option>
                   <option value="false">Inactivo</option>
@@ -771,32 +788,32 @@
 
             <hr class="my-2">
             <!-- Sección: Información personal -->
-            <p class="fw-semibold text-primary mb-2"><i class="bi bi-person me-1"></i>Información personal</p>
+            <p class="fw-semibold text-primary mb-2" data-i18n="user_section_personal"><i class="bi bi-person me-1"></i>Información personal</p>
             <div class="row g-2 mb-3">
               <div class="col-md-6">
-                <label for="ufFullName" class="form-label">Nombre Completo <span class="text-danger">*</span></label>
+                <label for="ufFullName" class="form-label" data-i18n="user_field_fullname">Nombre Completo <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="ufFullName" required maxlength="100">
               </div>
               <div class="col-md-6">
-                <label for="ufPhone" class="form-label">Teléfono</label>
+                <label for="ufPhone" class="form-label" data-i18n="user_field_phone">Teléfono</label>
                 <input type="text" class="form-control" id="ufPhone" maxlength="20" placeholder="+34 612 345 678">
               </div>
               <div class="col-md-6">
-                <label for="ufEmail" class="form-label">Email de contacto</label>
+                <label for="ufEmail" class="form-label" data-i18n="user_field_email">Email de contacto</label>
                 <input type="email" class="form-control" id="ufEmail" maxlength="100">
               </div>
             </div>
 
             <hr class="my-2 user-employee-only">
             <!-- Sección: Cargo y ubicación -->
-            <p class="fw-semibold text-primary mb-2 user-employee-only"><i class="bi bi-briefcase me-1"></i>Cargo y ubicación</p>
+            <p class="fw-semibold text-primary mb-2 user-employee-only" data-i18n="user_section_job"><i class="bi bi-briefcase me-1"></i>Cargo y ubicación</p>
             <div class="row g-2 mb-3 user-employee-only">
               <div class="col-md-4">
-                <label for="ufDocumentId" class="form-label">DNI / NIE</label>
+                <label for="ufDocumentId" class="form-label" data-i18n="user_field_document">DNI / NIE</label>
                 <input type="text" class="form-control" id="ufDocumentId" maxlength="30" placeholder="Documento identificativo">
               </div>
               <div class="col-md-4">
-                <label for="ufJobLevel" class="form-label">Nivel de cargo</label>
+                <label for="ufJobLevel" class="form-label" data-i18n="user_field_job_level">Nivel de cargo</label>
                 <select class="form-select" id="ufJobLevel">
                   <option value="">— Sin especificar —</option>
                   <option value="alta_direccion">Alta dirección</option>
@@ -806,11 +823,11 @@
                 </select>
               </div>
               <div class="col-md-4">
-                <label for="ufJobTitle" class="form-label">Título del cargo</label>
+                <label for="ufJobTitle" class="form-label" data-i18n="user_field_job_title">Título del cargo</label>
                 <input type="text" class="form-control" id="ufJobTitle" maxlength="100" placeholder="Director General, Supervisor, etc.">
               </div>
               <div class="col-md-4">
-                <label for="ufDepartment" class="form-label">Departamento</label>
+                <label for="ufDepartment" class="form-label" data-i18n="user_field_department">Departamento</label>
                 <select class="form-select" id="ufDepartment">
                   <option value="">— Sin especificar —</option>
                   <option value="direccion_gerencia">Dirección / Gerencia</option>
@@ -828,7 +845,7 @@
                 </select>
               </div>
               <div class="col-md-4">
-                <label for="ufSite" class="form-label">Sede</label>
+                <label for="ufSite" class="form-label" data-i18n="user_field_site">Sede</label>
                 <select class="form-select" id="ufSite">
                   <option value="">— Sin especificar —</option>
                   <option value="Barcelona">Barcelona</option>
@@ -837,7 +854,7 @@
                 </select>
               </div>
               <div class="col-md-4">
-                <label for="ufBuilding" class="form-label">Edificio</label>
+                <label for="ufBuilding" class="form-label" data-i18n="user_field_building">Edificio</label>
                 <input type="text" class="form-control" id="ufBuilding" maxlength="50" placeholder="Edificio 1, Edificio 2…">
               </div>
             </div>
@@ -846,8 +863,8 @@
           </form>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="userFormSaveBtn">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="userFormSaveBtn" data-i18n="btn_save">
             <i class="bi bi-check-lg me-1"></i>Guardar
           </button>
         </div>
@@ -882,7 +899,7 @@
 
   <!-- Company Form Modal -->
   <div class="modal fade" id="companyFormModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="companyFormTitle"><i class="bi bi-building me-2"></i>Nueva Empresa</h5>
@@ -892,23 +909,23 @@
           <form id="companyForm" novalidate>
             <input type="hidden" id="companyFormId">
             <div class="mb-3">
-              <label for="cfName" class="form-label">Nombre <span class="text-danger">*</span></label>
+              <label for="cfName" class="form-label" data-i18n="company_field_name">Nombre <span class="text-danger">*</span></label>
               <input type="text" class="form-control" id="cfName" required maxlength="150">
             </div>
             <div class="mb-3">
-              <label for="cfRif" class="form-label">RIF / NIF</label>
+              <label for="cfRif" class="form-label" data-i18n="company_field_rif">RIF / NIF</label>
               <input type="text" class="form-control" id="cfRif" maxlength="30">
             </div>
             <div class="mb-3">
-              <label for="cfEmail" class="form-label">Email</label>
+              <label for="cfEmail" class="form-label" data-i18n="company_field_email">Email</label>
               <input type="email" class="form-control" id="cfEmail">
             </div>
             <div class="mb-3">
-              <label for="cfPhone" class="form-label">Teléfono</label>
+              <label for="cfPhone" class="form-label" data-i18n="company_field_phone">Teléfono</label>
               <input type="text" class="form-control" id="cfPhone" maxlength="20">
             </div>
             <div class="mb-3">
-              <label for="cfAddress" class="form-label">Dirección</label>
+              <label for="cfAddress" class="form-label" data-i18n="company_field_address">Dirección</label>
               <input type="text" class="form-control" id="cfAddress" maxlength="255">
             </div>
             <div class="mb-3 d-none" id="cfActiveGroup">
@@ -918,12 +935,37 @@
                 <option value="false">Inactiva</option>
               </select>
             </div>
-            <div id="companyFormError" class="alert alert-danger d-none"></div>
+
+            <!-- Admin section: only shown when creating a new company -->
+            <div id="cfAdminSection" class="d-none">
+              <hr class="my-3">
+              <p class="fw-semibold text-primary mb-2" data-i18n="company_admin_section"><i class="bi bi-person-badge me-1"></i>Administrador de la empresa</p>
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <label for="cfAdminName" class="form-label" data-i18n="company_admin_name">Nombre completo <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="cfAdminName" maxlength="100">
+                </div>
+                <div class="col-md-6">
+                  <label for="cfAdminUser" class="form-label" data-i18n="company_admin_user">Usuario <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="cfAdminUser" maxlength="50" autocomplete="off">
+                </div>
+                <div class="col-md-6">
+                  <label for="cfAdminPass" class="form-label" data-i18n="company_admin_pass">Contraseña <span class="text-danger">*</span></label>
+                  <input type="password" class="form-control" id="cfAdminPass" minlength="8" maxlength="100" autocomplete="new-password">
+                </div>
+                <div class="col-md-6">
+                  <label for="cfAdminPassConfirm" class="form-label" data-i18n="company_admin_pass_confirm">Confirmar contraseña <span class="text-danger">*</span></label>
+                  <input type="password" class="form-control" id="cfAdminPassConfirm" maxlength="100" autocomplete="new-password">
+                </div>
+              </div>
+            </div>
+
+            <div id="companyFormError" class="alert alert-danger d-none mt-3"></div>
           </form>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="companyFormSaveBtn">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="companyFormSaveBtn" data-i18n="btn_save">
             <i class="bi bi-check-lg me-1"></i>Guardar
           </button>
         </div>
@@ -961,8 +1003,8 @@
           <p class="text-danger small">Esta acción no se puede deshacer.</p>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_cancel">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn" data-i18n="btn_delete">
             <i class="bi bi-trash me-1"></i>Eliminar
           </button>
         </div>
@@ -995,7 +1037,8 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+  <script src="js/i18n.js?v=2"></script>
   <script src="js/api.js?v=22"></script>
-  <script src="js/app.js?v=26"></script>
+  <script src="js/app.js?v=28"></script>
 </body>
 </html>

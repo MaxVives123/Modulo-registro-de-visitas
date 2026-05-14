@@ -10,8 +10,7 @@ const { isSuperAdmin } = require('../middleware/auth');
 
 const COMPANY_INCLUDE = { model: Company, as: 'company', attributes: ['id', 'name'] };
 
-/** No exponer documento de identidad en la API (dato sensible). */
-const VISIT_API_ATTRS = { exclude: ['visitor_document'] };
+const VISIT_API_ATTRS = {};
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -119,7 +118,7 @@ async function create(req, res, next) {
 
     const visit = await Visit.create({
       visitor_name: req.body.visitor_name,
-      visitor_document: null,
+      visitor_document: nullIfEmpty(req.body.visitor_document),
       visitor_company: nullIfEmpty(req.body.visitor_company),
       visitor_email: nullIfEmpty(req.body.visitor_email),
       visitor_phone: nullIfEmpty(req.body.visitor_phone),
@@ -136,8 +135,7 @@ async function create(req, res, next) {
         ? (req.body.company_id ? parseInt(req.body.company_id, 10) : null)
         : (req.user.company_id || null),
       qr_code: qrCode,
-      status: 'checked_in',
-      check_in: new Date(),
+      status: 'pending',
       created_by: req.user.id,
     });
 
@@ -174,9 +172,10 @@ async function update(req, res, next) {
     if (!visit) return res.status(404).json({ error: 'Visita no encontrada' });
 
     const allowedFields = [
-      'visitor_name', 'visitor_company',
+      'visitor_name', 'visitor_company', 'visitor_document',
       'visitor_email', 'visitor_phone', 'destination', 'purpose', 'notes', 'signature',
       'host_name', 'host_email', 'vehicle_plate', 'site', 'building', 'company_id',
+      'check_in', 'check_out',
     ];
 
     const updates = {};
@@ -253,6 +252,25 @@ async function checkOut(req, res, next) {
       'success',
     );
 
+    res.json({ visit });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function cancel(req, res, next) {
+  try {
+    const whereCN = { id: req.params.id };
+    applyCompanyScope(whereCN, req);
+    const visit = await Visit.findOne({ where: whereCN, attributes: VISIT_API_ATTRS });
+
+    if (!visit) return res.status(404).json({ error: 'Visita no encontrada' });
+    if (!['pending', 'checked_in'].includes(visit.status)) {
+      return res.status(400).json({ error: 'Solo se pueden cancelar visitas pendientes o en curso' });
+    }
+
+    await visit.update({ status: 'cancelled' });
+    logger.info(`Cancelación: visita ${visit.id}`);
     res.json({ visit });
   } catch (error) {
     next(error);
@@ -370,7 +388,7 @@ async function exportExcel(req, res, next) {
         v.check_in ? new Date(v.check_in).toLocaleString('es-ES') : '',
         v.check_out ? new Date(v.check_out).toLocaleString('es-ES') : '',
         v.creator?.full_name || '',
-        new Date(v.created_at).toLocaleString('es-ES'),
+        v.created_at ? new Date(v.created_at).toLocaleString('es-ES') : '',
       ]);
     });
 
@@ -386,4 +404,4 @@ async function exportExcel(req, res, next) {
   }
 }
 
-module.exports = { list, getById, create, update, remove, checkIn, checkOut, getDestinations, exportCSV, exportExcel };
+module.exports = { list, getById, create, update, remove, checkIn, checkOut, cancel, getDestinations, exportCSV, exportExcel };

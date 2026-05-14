@@ -101,6 +101,7 @@ const API = {
   deleteVisit(id) { return this.delete(`/visits/${id}`); },
   checkIn(id) { return this.post(`/visits/${id}/checkin`); },
   checkOut(id) { return this.post(`/visits/${id}/checkout`); },
+  cancelVisit(id) { return this.post(`/visits/${id}/cancel`); },
   getDestinations() { return this.get('/visits/destinations'); },
 
   // Users (admin)
