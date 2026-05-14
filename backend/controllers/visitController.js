@@ -58,6 +58,7 @@ async function list(req, res, next) {
         { destination: { [Op.iLike]: search } },
         { purpose: { [Op.iLike]: search } },
         { vehicle_plate: { [Op.iLike]: search } },
+        { host_name: { [Op.iLike]: search } },
       ];
     }
 

@@ -27,7 +27,7 @@ const visitValidation = {
     body('visitor_name').optional().trim().isLength({ min: 2, max: 100 }).escape(),
     body('visitor_document').optional({ checkFalsy: true }).trim().isLength({ max: 30 }).escape(),
     body('visitor_company').optional().trim().isLength({ max: 100 }).escape(),
-    body('visitor_email').optional().trim().isEmail().withMessage('Email inválido').normalizeEmail(),
+    body('visitor_email').optional({ checkFalsy: true }).trim().isEmail().withMessage('Email inválido').normalizeEmail(),
     body('visitor_phone').optional().trim().isLength({ max: 20 }).escape(),
     body('destination').optional().trim().isLength({ max: 100 }).escape(),
     body('purpose').optional().trim().isLength({ max: 255 }).escape(),
