@@ -352,8 +352,8 @@
                   <i class="bi bi-filetype-pdf me-1"></i>PDF
                 </button>
               </div>
-              <button type="button" class="btn btn-primary btn-sm" data-i18n="visits_btn_new" onclick="App.navigate('new-visit')">
-                <i class="bi bi-plus-lg me-1"></i>Nueva Visita
+              <button type="button" class="btn btn-primary btn-sm" onclick="App.navigate('new-visit')">
+                <i class="bi bi-plus-lg me-1"></i><span data-i18n="visits_btn_new">Nueva Visita</span>
               </button>
             </div>
             <div class="card-body p-0">
@@ -531,8 +531,8 @@
                     <span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span>
                     <i class="bi bi-check-lg me-1"></i>Registrar Visita
                   </button>
-                  <button type="button" class="btn btn-outline-secondary" data-i18n="visit_btn_cancel" onclick="App.navigate('visits')">
-                    <i class="bi bi-arrow-left me-1"></i>Cancelar
+                  <button type="button" class="btn btn-outline-secondary" onclick="App.navigate('visits')">
+                    <i class="bi bi-arrow-left me-1"></i><span data-i18n="visit_btn_cancel">Cancelar</span>
                   </button>
                 </div>
               </form>
@@ -544,8 +544,8 @@
           <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
               <h6 class="mb-0" data-i18n="companies_title"><i class="bi bi-building me-2"></i>Gestión de Empresas</h6>
-              <button class="btn btn-primary btn-sm" id="btnNewCompany" data-i18n="companies_btn_new">
-                <i class="bi bi-plus-lg me-1"></i>Nueva Empresa
+              <button class="btn btn-primary btn-sm" id="btnNewCompany">
+                <i class="bi bi-plus-lg me-1"></i><span data-i18n="companies_btn_new">Nueva Empresa</span>
               </button>
             </div>
             <div class="card-body p-0">
@@ -587,12 +587,12 @@
                     <option value="">— Empresa destino —</option>
                   </select>
                 </div>
-                <button type="button" class="btn btn-outline-primary btn-sm" id="btnImportUsersExcel" data-i18n="users_btn_import" title="Subir archivo .xlsx rellenado">
-                  <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar Excel
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btnImportUsersExcel" title="Subir archivo .xlsx rellenado">
+                  <i class="bi bi-file-earmark-arrow-up me-1"></i><span data-i18n="users_btn_import">Importar Excel</span>
                 </button>
                 <input type="file" id="usersImportFileInput" class="d-none" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-                <button class="btn btn-primary btn-sm" id="btnNewUser" data-i18n="users_btn_new">
-                  <i class="bi bi-plus-lg me-1"></i>Nuevo empleado
+                <button class="btn btn-primary btn-sm" id="btnNewUser">
+                  <i class="bi bi-plus-lg me-1"></i><span data-i18n="users_btn_new">Nuevo empleado</span>
                 </button>
               </div>
             </div>
@@ -864,8 +864,8 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_cancel">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="userFormSaveBtn" data-i18n="btn_save">
-            <i class="bi bi-check-lg me-1"></i>Guardar
+          <button type="button" class="btn btn-primary" id="userFormSaveBtn">
+            <i class="bi bi-check-lg me-1"></i><span data-i18n="btn_save">Guardar</span>
           </button>
         </div>
       </div>
@@ -965,8 +965,8 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_cancel">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="companyFormSaveBtn" data-i18n="btn_save">
-            <i class="bi bi-check-lg me-1"></i>Guardar
+          <button type="button" class="btn btn-primary" id="companyFormSaveBtn">
+            <i class="bi bi-check-lg me-1"></i><span data-i18n="btn_save">Guardar</span>
           </button>
         </div>
       </div>
@@ -1004,8 +1004,8 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_cancel">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteBtn" data-i18n="btn_delete">
-            <i class="bi bi-trash me-1"></i>Eliminar
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+            <i class="bi bi-trash me-1"></i><span data-i18n="btn_delete">Eliminar</span>
           </button>
         </div>
       </div>
@@ -1039,6 +1039,6 @@
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
   <script src="js/i18n.js?v=3"></script>
   <script src="js/api.js?v=22"></script>
-  <script src="js/app.js?v=29"></script>
+  <script src="js/app.js?v=30"></script>
 </body>
 </html>
