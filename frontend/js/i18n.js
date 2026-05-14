@@ -573,9 +573,11 @@ function setLang(lang) {
     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
       el.placeholder = val;
     } else if (el.children.length > 0) {
-      // has child elements (icons, *, etc.) — only replace the first text node
-      const firstText = Array.from(el.childNodes).find((n) => n.nodeType === 3);
-      if (firstText) firstText.textContent = val;
+      // has child elements (icons, * spans, etc.)
+      // find the meaningful text node (non-whitespace), replace it, blank the rest
+      const textNodes = Array.from(el.childNodes).filter((n) => n.nodeType === 3);
+      const target = textNodes.find((n) => n.textContent.trim() !== '') ?? textNodes[textNodes.length - 1];
+      textNodes.forEach((n) => { n.textContent = n === target ? val : ''; });
     } else {
       el.textContent = val;
     }
