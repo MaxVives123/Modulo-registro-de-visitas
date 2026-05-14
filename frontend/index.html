@@ -153,13 +153,6 @@
           </a>
         </li>
       </ul>
-      <div class="sidebar-footer">
-        <div class="d-flex justify-content-center gap-1 py-2">
-          <button class="btn btn-sm btn-outline-light lang-btn" data-lang="es" onclick="setLang('es')">ES</button>
-          <button class="btn btn-sm btn-outline-light lang-btn" data-lang="ca" onclick="setLang('ca')">CA</button>
-          <button class="btn btn-sm btn-outline-light lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
-        </div>
-      </div>
     </nav>
 
     <!-- Main Content -->
@@ -171,6 +164,11 @@
         </button>
         <h5 class="page-title mb-0" id="pageTitle">Dashboard</h5>
         <div class="nav-right d-flex align-items-center gap-3">
+          <div class="btn-group btn-group-sm" role="group" aria-label="Language">
+            <button class="btn btn-outline-secondary lang-btn" data-lang="es" onclick="setLang('es')">ES</button>
+            <button class="btn btn-outline-secondary lang-btn" data-lang="ca" onclick="setLang('ca')">CA</button>
+            <button class="btn btn-outline-secondary lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+          </div>
           <div class="dropdown" id="notifDropdown">
             <button class="btn btn-link position-relative p-0 text-dark" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="notifBell" title="Notificaciones">
               <i class="bi bi-bell fs-5"></i>
