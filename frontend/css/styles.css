@@ -115,7 +115,9 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 }
 .sidebar-link i { font-size: 1.1rem; width: 24px; text-align: center; }
 .sidebar-footer {
-  display: none;
+  padding: 0.5rem 1rem 1rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin-top: auto;
 }
 .sidebar-user {
   display: flex; align-items: center; gap: 0.5rem;
