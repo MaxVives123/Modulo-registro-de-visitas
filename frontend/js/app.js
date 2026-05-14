@@ -13,6 +13,7 @@ const App = {
   /** Helpers de rol */
   currentUser() { return JSON.parse(localStorage.getItem('user') || '{}'); },
   isSuperAdmin() { const r = this.currentUser().role; return r === 'superadmin' || r === 'admin'; },
+  isPureSuperAdmin() { return this.currentUser().role === 'superadmin'; },
   isCompanyAdmin() { return this.currentUser().role === 'admin_empresa'; },
   canManageUsers() { return this.isSuperAdmin() || this.isCompanyAdmin(); },
 
@@ -33,7 +34,7 @@ const App = {
     document.getElementById('showRegisterLink')?.addEventListener('click', (e) => { e.preventDefault(); this.showRegister(); });
     document.getElementById('showLoginLink').addEventListener('click', (e) => { e.preventDefault(); this.showLoginForm(); });
     document.getElementById('logoutBtn').addEventListener('click', () => this.handleLogout());
-    document.getElementById('visitForm').addEventListener('submit', (e) => this.handleVisitSubmit(e));
+    document.getElementById('visitForm').addEventListener('submit', (e) => { e.preventDefault(); });
     document.getElementById('sidebarToggle').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('clearSignatureBtn').addEventListener('click', () => this.clearSignature());
     document.getElementById('markAllReadBtn')?.addEventListener('click', () => this.handleMarkAllRead());
@@ -109,8 +110,12 @@ const App = {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     document.getElementById('navUserName').textContent = user.full_name || 'Usuario';
     const isSA = this.isSuperAdmin();
+    const isPureSA = this.isPureSuperAdmin();
     const canUsers = this.canManageUsers();
 
+    // Visitas / Nueva Visita: ocultar para superadmin puro
+    document.getElementById('sidebarVisitsItem')?.classList.toggle('d-none', isPureSA);
+    document.getElementById('sidebarNewVisitItem')?.classList.toggle('d-none', isPureSA);
     // Empresas: solo superadmin
     document.getElementById('sidebarCompaniesItem')?.classList.toggle('d-none', !isSA);
     // Empleados: superadmin y admin_empresa
@@ -325,11 +330,15 @@ const App = {
     document.getElementById('pageNewVisit').classList.remove('d-none');
     document.getElementById('pageTitle').textContent = t('visit_form_edit');
     document.getElementById('visitFormTitle').innerHTML = `<i class="bi bi-pencil me-2"></i>${t('visit_form_edit')}`;
+    // En modo edición: un único botón "Guardar", ocultar Pre-registrar
+    document.getElementById('visitPreRegisterBtn').classList.add('d-none');
     document.getElementById('visitSubmitBtn').innerHTML = `<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-check-lg me-1"></i>${t('visit_btn_save')}`;
+    document.getElementById('visitSubmitBtn').className = 'btn btn-primary';
     const extras = document.getElementById('visitFormExtras');
     if (extras) extras.classList.add('d-none');
     const sigBlock = document.getElementById('signatureBlock');
     if (sigBlock) sigBlock.classList.add('d-none');
+    document.getElementById('visitFormError').classList.add('d-none');
     this.loadVisitForEdit(id);
     this.loadDestinations();
   },
@@ -418,11 +427,15 @@ const App = {
     if (purposeCustom) purposeCustom.value = '';
     this.togglePurposeCustom();
     document.getElementById('visitFormTitle').innerHTML = `<i class="bi bi-person-plus me-2"></i>${t('visit_form_new')}`;
-    document.getElementById('visitSubmitBtn').innerHTML = `<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-calendar-plus me-1"></i>${t('visit_btn_register')}`;
+    // Restaurar dos botones en modo nuevo
+    const preRegBtn = document.getElementById('visitPreRegisterBtn');
+    if (preRegBtn) preRegBtn.classList.remove('d-none');
+    document.getElementById('visitSubmitBtn').innerHTML = `<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-box-arrow-in-right me-1"></i>${t('visit_btn_register')}`;
+    document.getElementById('visitSubmitBtn').className = 'btn btn-success';
     const extras = document.getElementById('visitFormExtras');
     if (extras) extras.classList.remove('d-none');
     const printChk = document.getElementById('visitPrintAfterSave');
-    if (printChk) printChk.checked = true;
+    if (printChk) printChk.checked = false;
     document.getElementById('visitFormError').classList.add('d-none');
     const sigBlock = document.getElementById('signatureBlock');
     if (sigBlock) sigBlock.classList.remove('d-none');
@@ -456,11 +469,11 @@ const App = {
     return err?.error || 'Error al guardar';
   },
 
-  async handleVisitSubmit(e) {
-    e.preventDefault();
-    const btn = document.getElementById('visitSubmitBtn');
-    const spinner = btn ? btn.querySelector('.visit-submit-spinner') : null;
-    const errorDiv = document.getElementById('visitFormError');
+  async submitVisit(autoCheckin = false) {
+    const btn = autoCheckin
+      ? document.getElementById('visitSubmitBtn')
+      : document.getElementById('visitPreRegisterBtn');
+    const spinners = document.querySelectorAll('.visit-submit-spinner');
     if (!btn) return;
 
     const hostSel = document.getElementById('vHostUserId');
@@ -499,7 +512,7 @@ const App = {
     }
 
     btn.disabled = true;
-    spinner?.classList.remove('d-none');
+    spinners.forEach((s) => s.classList.remove('d-none'));
     this.setVisitFormError('Registrando visita... por favor espera.', 'info');
 
     const doPrint = !this.editingVisitId && document.getElementById('visitPrintAfterSave')?.checked;
@@ -510,7 +523,6 @@ const App = {
         if (!updated?.visit) {
           throw { error: 'El servidor no confirmó los cambios. Revisa la sesión o inténtalo de nuevo.' };
         }
-        this.setVisitFormError('Visita actualizada correctamente.', 'success');
         this.toast('Visita actualizada correctamente', 'success');
         this.navigate('visits');
       } else {
@@ -518,9 +530,13 @@ const App = {
         if (!result?.visit) {
           throw { error: 'No se pudo crear la visita (respuesta vacía del servidor). Suele indicar sesión caducada: cierra sesión y entra de nuevo.' };
         }
-        const visitId = result.visit.id ? ` (ID #${result.visit.id})` : '';
-        this.setVisitFormError(`Visita pre-registrada${visitId}. Pendiente de check-in cuando llegue el visitante.`, 'success');
-        this.toast('Visita pre-registrada correctamente', 'success');
+        if (autoCheckin) {
+          // Registrar entrada inmediatamente
+          try { await API.checkIn(result.visit.id); } catch (_) { /* ignorar si falla */ }
+          this.toast('Visita registrada con entrada', 'success');
+        } else {
+          this.toast('Visita pre-registrada correctamente', 'success');
+        }
         this.navigate('visits');
         if (result.visit && doPrint) {
           setTimeout(() => this.showCredentialAndPrint(result.visit.id), 400);
@@ -536,7 +552,7 @@ const App = {
       this.toast(`Error al registrar: ${msg}`, 'danger');
     } finally {
       btn.disabled = false;
-      spinner?.classList.add('d-none');
+      spinners.forEach((s) => s.classList.add('d-none'));
     }
   },
 
@@ -670,15 +686,15 @@ const App = {
           <small class="text-muted">${this.esc(v.destination || '—')}</small>
         </td>
         <td>${this.statusBadge(v.status)}</td>
-        <td class="d-none d-md-table-cell"><small>${this.formatDateTime(v.check_in || v.created_at) || '—'}</small></td>
-        <td>
+        <td class="d-none d-md-table-cell">
           ${v.status === 'pending'
-            ? `<button class="btn btn-success btn-sm fw-semibold" title="Registrar entrada" onclick="App.performCheckIn(${v.id})"><i class="bi bi-box-arrow-in-right me-1"></i>${t('btn_checkin')}</button>`
-            : v.check_out
-              ? `<small>${this.formatDateTime(v.check_out)}</small>`
-              : (v.status === 'checked_in'
-                ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
-                : '<small class="text-muted">—</small>')}
+            ? `<button class="btn btn-success btn-sm fw-semibold" title="Registrar entrada" onclick="App.performCheckIn(${v.id})"><i class="bi bi-box-arrow-in-right me-1"></i>Entrada</button>`
+            : `<small>${this.formatDateTime(v.check_in) || '—'}</small>`}
+        </td>
+        <td>
+          ${v.status === 'checked_in'
+            ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
+            : `<small>${this.formatDateTime(v.check_out) || '—'}</small>`}
         </td>
         <td>
           <div class="d-flex gap-1 flex-wrap align-items-center">
@@ -743,15 +759,15 @@ const App = {
           <small class="text-muted">${this.esc(v.destination || '—')}</small>
         </td>
         <td>${this.statusBadge(v.status)}</td>
-        <td class="d-none d-sm-table-cell"><small>${this.formatDateTime(v.check_in) || '—'}</small></td>
-        <td>
+        <td class="d-none d-sm-table-cell">
           ${v.status === 'pending'
-            ? `<button class="btn btn-success btn-sm fw-semibold" title="Registrar entrada" onclick="App.performCheckIn(${v.id})"><i class="bi bi-box-arrow-in-right me-1"></i>${t('btn_checkin')}</button>`
-            : v.check_out
-              ? `<small>${this.formatDateTime(v.check_out)}</small>`
-              : (v.status === 'checked_in'
-                ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
-                : '<small class="text-muted">—</small>')}
+            ? `<button class="btn btn-success btn-sm fw-semibold" title="Registrar entrada" onclick="App.performCheckIn(${v.id})"><i class="bi bi-box-arrow-in-right me-1"></i>Entrada</button>`
+            : `<small>${this.formatDateTime(v.check_in) || '—'}</small>`}
+        </td>
+        <td>
+          ${v.status === 'checked_in'
+            ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
+            : `<small>${this.formatDateTime(v.check_out) || '—'}</small>`}
         </td>
         <td>
           <div class="d-flex gap-1 flex-wrap align-items-center">
@@ -1234,12 +1250,12 @@ const App = {
   async loadPlatformUsers() {
     const tbody = document.getElementById('platformUsersTable');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
     try {
       const data = await API.getUsers();
       this.renderPlatformUsersTable(data.users);
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Error al cargar usuarios</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error al cargar usuarios</td></tr>';
     }
   },
 
@@ -1248,13 +1264,14 @@ const App = {
     if (!tbody) return;
     const platformUsers = users.filter((u) => ['user', 'admin_empresa', 'admin'].includes(u.role));
     if (!platformUsers.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No hay usuarios</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay usuarios</td></tr>';
       return;
     }
     tbody.innerHTML = platformUsers.map((u) => `
       <tr class="${!u.active ? 'table-secondary' : ''}">
         <td><strong>${this.esc(u.username)}</strong></td>
         <td>${this.esc(u.full_name)}</td>
+        <td class="d-none d-lg-table-cell"><small>${this.esc(u.company?.name || '—')}</small></td>
         <td>
           <span class="badge ${u.role === 'user' ? 'bg-secondary' : 'bg-primary'}">${u.role === 'user' ? 'Usuario' : 'Admin'}</span>
         </td>
@@ -1684,14 +1701,16 @@ const App = {
           errorDiv.classList.remove('d-none');
           return;
         }
-        await API.registerCompany({
-          company_name: payload.name,
-          rif: payload.rif,
-          company_email: payload.email,
-          company_phone: payload.phone,
-          admin_name: adminName,
+        // Crear empresa primero (endpoint autenticado, sin rate-limit de registro)
+        const companyResult = await API.createCompany(payload);
+        // Luego crear su admin
+        await API.createUser({
+          full_name: adminName,
           username: adminUser,
           password: adminPass,
+          role: 'admin_empresa',
+          company_id: companyResult.company.id,
+          active: true,
         });
         this.toast('Empresa registrada correctamente', 'success');
       }
