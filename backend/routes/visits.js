@@ -20,5 +20,6 @@ router.put('/:id', visitValidation.update, validationMiddleware, visitController
 router.delete('/:id', visitController.remove);
 router.post('/:id/checkin', visitController.checkIn);
 router.post('/:id/checkout', visitController.checkOut);
+router.post('/:id/cancel', visitController.cancel);
 
 module.exports = router;

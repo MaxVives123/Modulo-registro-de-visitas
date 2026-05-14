@@ -17,6 +17,7 @@ const App = {
   canManageUsers() { return this.isSuperAdmin() || this.isCompanyAdmin(); },
 
   init() {
+    setLang(getCurrentLang());
     if (API.token && localStorage.getItem('user')) {
       this.showApp();
       this.navigate('dashboard');
@@ -273,6 +274,7 @@ const App = {
         this.resetVisitForm();
         this.loadDestinations();
         this._applyCompanyScopeToForm();
+        this.resizeSignatureCanvas(document.getElementById('signatureCanvas'));
         break;
       case 'users':
         document.getElementById('pageUsers').classList.remove('d-none');
@@ -321,9 +323,9 @@ const App = {
     this.editingVisitId = id;
     document.querySelectorAll('.page-content').forEach((p) => p.classList.add('d-none'));
     document.getElementById('pageNewVisit').classList.remove('d-none');
-    document.getElementById('pageTitle').textContent = 'Editar Visita';
-    document.getElementById('visitFormTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Visita';
-    document.getElementById('visitSubmitBtn').innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-check-lg me-1"></i>Guardar Cambios';
+    document.getElementById('pageTitle').textContent = t('visit_form_edit');
+    document.getElementById('visitFormTitle').innerHTML = `<i class="bi bi-pencil me-2"></i>${t('visit_form_edit')}`;
+    document.getElementById('visitSubmitBtn').innerHTML = `<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-check-lg me-1"></i>${t('visit_btn_save')}`;
     const extras = document.getElementById('visitFormExtras');
     if (extras) extras.classList.add('d-none');
     const sigBlock = document.getElementById('signatureBlock');
@@ -352,7 +354,18 @@ const App = {
       document.getElementById('vCompany').value = v.visitor_company || '';
       document.getElementById('vEmail').value = v.visitor_email || '';
       document.getElementById('vPhone').value = v.visitor_phone || '';
+      document.getElementById('vVisitorDocument').value = v.visitor_document || '';
       document.getElementById('vDestination').value = v.destination || '';
+
+      const toDatetimeLocal = (iso) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
+      document.getElementById('vCheckIn').value = toDatetimeLocal(v.check_in);
+      document.getElementById('vCheckOut').value = toDatetimeLocal(v.check_out);
+      document.getElementById('visitCheckInOutBlock').classList.remove('d-none');
       const hostSel = document.getElementById('vHostUserId');
       if (hostSel) {
         const byName = this._hostCandidates?.find((u) => (u.full_name || '').toLowerCase() === (v.host_name || '').toLowerCase());
@@ -363,9 +376,6 @@ const App = {
       document.getElementById('vVehiclePlate').value = v.vehicle_plate || '';
       document.getElementById('vSite').value = v.site || '';
       document.getElementById('vBuilding').value = v.building || '';
-      document.getElementById('vHostDocument').value = '';
-      document.getElementById('vHostPhone').value = '';
-      document.getElementById('vHostJobTitle').value = '';
       const purposeSelect = document.getElementById('vPurposeSelect');
       const purposeCustom = document.getElementById('vPurposeCustom');
       if (purposeSelect) {
@@ -393,19 +403,22 @@ const App = {
     const hostSel = document.getElementById('vHostUserId');
     if (hostSel) hostSel.value = '';
     document.getElementById('vHostEmail').value = '';
-    document.getElementById('vHostDocument').value = '';
     document.getElementById('vHostPhone').value = '';
     document.getElementById('vHostJobTitle').value = '';
+    document.getElementById('vVisitorDocument').value = '';
     document.getElementById('vVehiclePlate').value = '';
     document.getElementById('vSite').value = '';
     document.getElementById('vBuilding').value = '';
+    document.getElementById('vCheckIn').value = '';
+    document.getElementById('vCheckOut').value = '';
+    document.getElementById('visitCheckInOutBlock').classList.add('d-none');
     const purposeSelect = document.getElementById('vPurposeSelect');
     if (purposeSelect) purposeSelect.value = 'Reunión';
     const purposeCustom = document.getElementById('vPurposeCustom');
     if (purposeCustom) purposeCustom.value = '';
     this.togglePurposeCustom();
-    document.getElementById('visitFormTitle').innerHTML = '<i class="bi bi-person-plus me-2"></i>Nueva Visita';
-    document.getElementById('visitSubmitBtn').innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-check-lg me-1"></i>Registrar Visita';
+    document.getElementById('visitFormTitle').innerHTML = `<i class="bi bi-person-plus me-2"></i>${t('visit_form_new')}`;
+    document.getElementById('visitSubmitBtn').innerHTML = `<span class="spinner-border spinner-border-sm d-none me-2 visit-submit-spinner" role="status" aria-hidden="true"></span><i class="bi bi-calendar-plus me-1"></i>${t('visit_btn_register')}`;
     const extras = document.getElementById('visitFormExtras');
     if (extras) extras.classList.remove('d-none');
     const printChk = document.getElementById('visitPrintAfterSave');
@@ -457,6 +470,7 @@ const App = {
       visitor_company: document.getElementById('vCompany').value.trim(),
       visitor_email: document.getElementById('vEmail').value.trim(),
       visitor_phone: document.getElementById('vPhone').value.trim(),
+      visitor_document: document.getElementById('vVisitorDocument').value.trim(),
       destination: document.getElementById('vDestination').value.trim(),
       host_name: selectedHost?.full_name || this._loadedVisitHostName || '',
       host_email: document.getElementById('vHostEmail').value.trim(),
@@ -467,6 +481,13 @@ const App = {
       purpose: this.getPurposeValue(),
       notes: document.getElementById('vNotes').value.trim(),
     };
+
+    if (this.editingVisitId) {
+      const ci = document.getElementById('vCheckIn').value;
+      const co = document.getElementById('vCheckOut').value;
+      if (ci) data.check_in = new Date(ci).toISOString();
+      if (co) data.check_out = new Date(co).toISOString();
+    }
 
     if (!data.visitor_name || !data.visitor_company || !data.host_name || !data.destination || !data.purpose) {
       this.setVisitFormError('Completa todos los campos obligatorios', 'danger');
@@ -498,8 +519,8 @@ const App = {
           throw { error: 'No se pudo crear la visita (respuesta vacía del servidor). Suele indicar sesión caducada: cierra sesión y entra de nuevo.' };
         }
         const visitId = result.visit.id ? ` (ID #${result.visit.id})` : '';
-        this.setVisitFormError(`Visita registrada correctamente${visitId}.`, 'success');
-        this.toast('Visita registrada correctamente', 'success');
+        this.setVisitFormError(`Visita pre-registrada${visitId}. Pendiente de check-in cuando llegue el visitante.`, 'success');
+        this.toast('Visita pre-registrada correctamente', 'success');
         this.navigate('visits');
         if (result.visit && doPrint) {
           setTimeout(() => this.showCredentialAndPrint(result.visit.id), 400);
@@ -558,6 +579,12 @@ const App = {
     document.getElementById('btnActivityMonth')?.classList.toggle('active', this.dashboardActivityDays === 30);
     document.getElementById('btnRecentCurrent')?.classList.toggle('active', !this.dashboardRecentAll);
     document.getElementById('btnRecentAll')?.classList.toggle('active', this.dashboardRecentAll);
+    const recentTitle = document.getElementById('recentVisitsTitle');
+    if (recentTitle) {
+      recentTitle.innerHTML = this.dashboardRecentAll
+        ? `<i class="bi bi-clock-history me-2"></i>${t('dash_recent_title_all')}`
+        : `<i class="bi bi-clock-history me-2"></i>${t('dash_recent_title_current')}`;
+    }
   },
 
   renderActivityChart(data) {
@@ -645,11 +672,13 @@ const App = {
         <td>${this.statusBadge(v.status)}</td>
         <td class="d-none d-md-table-cell"><small>${this.formatDateTime(v.check_in || v.created_at) || '—'}</small></td>
         <td>
-          ${v.check_out
-            ? `<small>${this.formatDateTime(v.check_out)}</small>`
-            : (v.status === 'checked_in'
-              ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
-              : '<small class="text-muted">—</small>')}
+          ${v.status === 'pending'
+            ? `<button class="btn btn-success btn-sm fw-semibold" title="Registrar entrada" onclick="App.performCheckIn(${v.id})"><i class="bi bi-box-arrow-in-right me-1"></i>${t('btn_checkin')}</button>`
+            : v.check_out
+              ? `<small>${this.formatDateTime(v.check_out)}</small>`
+              : (v.status === 'checked_in'
+                ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
+                : '<small class="text-muted">—</small>')}
         </td>
         <td>
           <div class="d-flex gap-1 flex-wrap align-items-center">
@@ -716,11 +745,13 @@ const App = {
         <td>${this.statusBadge(v.status)}</td>
         <td class="d-none d-sm-table-cell"><small>${this.formatDateTime(v.check_in) || '—'}</small></td>
         <td>
-          ${v.check_out
-            ? `<small>${this.formatDateTime(v.check_out)}</small>`
-            : (v.status === 'checked_in'
-              ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
-              : '<small class="text-muted">—</small>')}
+          ${v.status === 'pending'
+            ? `<button class="btn btn-success btn-sm fw-semibold" title="Registrar entrada" onclick="App.performCheckIn(${v.id})"><i class="bi bi-box-arrow-in-right me-1"></i>${t('btn_checkin')}</button>`
+            : v.check_out
+              ? `<small>${this.formatDateTime(v.check_out)}</small>`
+              : (v.status === 'checked_in'
+                ? `<button class="btn btn-warning btn-sm fw-semibold" title="Registrar salida" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Salida</button>`
+                : '<small class="text-muted">—</small>')}
         </td>
         <td>
           <div class="d-flex gap-1 flex-wrap align-items-center">
@@ -847,47 +878,49 @@ const App = {
 
       document.getElementById('visitDetailBody').innerHTML = `
         <div class="detail-grid">
-          <div class="detail-item"><label>Visitante</label><span>${this.esc(v.visitor_name)}</span></div>
-          <div class="detail-item"><label>Empresa visitante</label><span>${this.esc(v.visitor_company || 'N/A')}</span></div>
-          <div class="detail-item"><label>Email visitante</label><span>${this.esc(v.visitor_email || 'N/A')}</span></div>
-          <div class="detail-item"><label>Teléfono</label><span>${this.esc(v.visitor_phone || 'N/A')}</span></div>
+          <div class="detail-item"><label>${t('detail_visitor')}</label><span>${this.esc(v.visitor_name)}</span></div>
+          <div class="detail-item"><label>${t('detail_visitor_company')}</label><span>${this.esc(v.visitor_company || 'N/A')}</span></div>
+          <div class="detail-item"><label>${t('detail_visitor_email')}</label><span>${this.esc(v.visitor_email || 'N/A')}</span></div>
+          <div class="detail-item"><label>${t('detail_visitor_phone')}</label><span>${this.esc(v.visitor_phone || 'N/A')}</span></div>
+          ${v.vehicle_plate ? `<div class="detail-item"><label>${t('detail_visitor_plate')}</label><span class="badge bg-warning text-dark fs-6">${this.esc(v.vehicle_plate)}</span></div>` : ''}
         </div>
         <hr class="my-3">
         <div class="detail-grid">
-          <div class="detail-item"><label>Persona visitada</label><span>${this.esc(v.host_name || 'N/A')}</span></div>
-          <div class="detail-item"><label>Destino / Dpto.</label><span>${this.esc(v.destination)}</span></div>
-          <div class="detail-item"><label>Email persona visitada</label><span>${this.esc(v.host_email || 'N/A')}</span></div>
-          ${v.vehicle_plate ? `<div class="detail-item"><label>Matrícula vehículo</label><span class="badge bg-warning text-dark fs-6">${this.esc(v.vehicle_plate)}</span></div>` : ''}
-          ${v.site || v.building ? `<div class="detail-item"><label>Ubicación</label><span>${this.esc([v.site, v.building].filter(Boolean).join(' – '))}</span></div>` : ''}
-          <div class="detail-item"><label>Motivo</label><span>${this.esc(v.purpose)}</span></div>
+          <div class="detail-item"><label>${t('detail_host')}</label><span>${this.esc(v.host_name || 'N/A')}</span></div>
+          <div class="detail-item"><label>${t('detail_destination')}</label><span>${this.esc(v.destination || 'N/A')}</span></div>
+          <div class="detail-item"><label>${t('detail_host_email')}</label><span>${this.esc(v.host_email || 'N/A')}</span></div>
+          ${v.site || v.building ? `<div class="detail-item"><label>${t('detail_location')}</label><span>${this.esc([v.site, v.building].filter(Boolean).join(' – '))}</span></div>` : ''}
+          <div class="detail-item"><label>${t('detail_purpose')}</label><span>${this.esc(v.purpose || 'N/A')}</span></div>
         </div>
         <hr class="my-3">
         <div class="detail-grid">
-          <div class="detail-item"><label>Estado</label><span>${this.statusBadge(v.status)}</span></div>
-          <div class="detail-item"><label>Entrada</label><span>${this.formatDateTime(v.check_in) || 'Sin registro'}</span></div>
-          <div class="detail-item"><label>Salida</label><span>${this.formatDateTime(v.check_out) || 'Sin registro'}</span></div>
-          <div class="detail-item"><label>Registrado por</label><span>${this.esc(v.creator?.full_name || 'N/A')}</span></div>
-          <div class="detail-item"><label>Fecha de creación</label><span>${this.formatDateTime(v.created_at)}</span></div>
+          <div class="detail-item"><label>${t('detail_status')}</label><span>${this.statusBadge(v.status)}</span></div>
+          <div class="detail-item"><label>${t('detail_checkin')}</label><span>${this.formatDateTime(v.check_in) || '—'}</span></div>
+          <div class="detail-item"><label>${t('detail_checkout')}</label><span>${this.formatDateTime(v.check_out) || '—'}</span></div>
+          <div class="detail-item"><label>${t('detail_creator')}</label><span>${this.esc(v.creator?.full_name || 'N/A')}</span></div>
+          <div class="detail-item"><label>${t('detail_created_at')}</label><span>${this.formatDateTime(v.created_at)}</span></div>
         </div>
-        ${v.notes ? `<div class="mt-3"><label class="form-label small fw-semibold text-muted">NOTAS</label><p>${this.esc(v.notes)}</p></div>` : ''}
-        ${v.signature ? `<div class="mt-3"><label class="form-label small fw-semibold text-muted">FIRMA DEL VISITANTE</label><div class="border rounded p-2 bg-white text-center"><img src="${v.signature}" alt="Firma" style="max-height:120px;"></div></div>` : ''}
+        ${v.notes ? `<div class="mt-3"><label class="form-label small fw-semibold text-muted">${t('detail_notes')}</label><p>${this.esc(v.notes)}</p></div>` : ''}
+        ${v.signature ? `<div class="mt-3"><label class="form-label small fw-semibold text-muted">${t('detail_signature')}</label><div class="border rounded p-2 bg-white text-center"><img src="${v.signature}" alt="Firma" style="max-height:120px;"></div></div>` : ''}
         <div class="text-center mt-3">
-          <p class="text-muted small mb-2">Código QR de la visita</p>
+          <p class="text-muted small mb-2">QR</p>
           <img src="${qrData.qr_image}" alt="QR Code" style="max-width: 180px;">
           <p class="text-muted small mt-1">${qrData.qr_code}</p>
         </div>
       `;
 
       let footerHtml = `
-        ${v.status === 'checked_in' ? `<button class="btn btn-warning fw-semibold" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>Registrar Salida</button>` : ''}
+        ${v.status === 'pending' ? `<button class="btn btn-success fw-semibold" onclick="App.performCheckIn(${v.id})"><i class="bi bi-box-arrow-in-right me-1"></i>${t('detail_btn_checkin')}</button>` : ''}
+        ${v.status === 'checked_in' ? `<button class="btn btn-warning fw-semibold" onclick="App.performCheckOut(${v.id})"><i class="bi bi-box-arrow-right me-1"></i>${t('detail_btn_checkout')}</button>` : ''}
+        ${['pending', 'checked_in'].includes(v.status) ? `<button class="btn btn-outline-danger" onclick="App.cancelVisit(${v.id})"><i class="bi bi-x-circle me-1"></i>${t('detail_btn_cancel_visit')}</button>` : ''}
         <button class="btn btn-success" onclick="App.showCredentialAndPrint(${v.id})">
-          <i class="bi bi-printer me-1"></i>Imprimir Credencial
+          <i class="bi bi-printer me-1"></i>${t('detail_btn_print')}
         </button>
         <button class="btn btn-danger" onclick="App.downloadVisitPDF(${v.id})">
-          <i class="bi bi-filetype-pdf me-1"></i>PDF
+          <i class="bi bi-filetype-pdf me-1"></i>${t('detail_btn_pdf')}
         </button>`;
 
-      footerHtml += `<button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`;
+      footerHtml += `<button class="btn btn-secondary" data-bs-dismiss="modal">${t('detail_btn_close')}</button>`;
       document.getElementById('visitDetailFooter').innerHTML = footerHtml;
 
       new bootstrap.Modal(document.getElementById('visitDetailModal')).show();
@@ -902,6 +935,33 @@ const App = {
       this.toast('PDF de visita descargado', 'success');
     } catch (err) {
       this.toast('Error al exportar PDF de visita', 'danger');
+    }
+  },
+
+  // ===== CHECK IN =====
+  async performCheckIn(id) {
+    try {
+      await API.checkIn(id);
+      this.toast('Entrada registrada correctamente', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('visitDetailModal'))?.hide();
+      if (this.currentPage === 'visits') this.loadVisits();
+      if (this.currentPage === 'dashboard') this.loadDashboard();
+    } catch (err) {
+      this.toast(err.error || 'Error al registrar entrada', 'danger');
+    }
+  },
+
+  // ===== CANCEL =====
+  async cancelVisit(id) {
+    if (!confirm('¿Cancelar esta visita? Esta acción no se puede deshacer.')) return;
+    try {
+      await API.cancelVisit(id);
+      this.toast('Visita cancelada', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('visitDetailModal'))?.hide();
+      if (this.currentPage === 'visits') this.loadVisits();
+      if (this.currentPage === 'dashboard') this.loadDashboard();
+    } catch (err) {
+      this.toast(err.error || 'Error al cancelar la visita', 'danger');
     }
   },
 
@@ -1322,8 +1382,14 @@ const App = {
         ? '<i class="bi bi-person-badge me-2"></i>Nuevo usuario de plataforma'
         : '<i class="bi bi-person-plus me-2"></i>Nuevo empleado';
       usernameInput.disabled = false;
-      pwGroup.classList.remove('d-none');
-      activeGroup.classList.add('d-none');
+      if (fromPlatform) {
+        pwGroup.classList.remove('d-none');
+        activeGroup.classList.add('d-none');
+      } else {
+        pwGroup.classList.add('d-none');
+        activeGroup.classList.remove('d-none');
+        document.getElementById('ufActive').value = 'true';
+      }
       document.getElementById('ufDocumentId').value = '';
     }
     modal.show();
@@ -1491,7 +1557,6 @@ const App = {
     const sel = document.getElementById('vHostUserId');
     const user = this._hostCandidates?.find((u) => String(u.id) === String(sel?.value || ''));
     if (!user) {
-      document.getElementById('vHostDocument').value = '';
       document.getElementById('vHostJobTitle').value = '';
       document.getElementById('vHostEmail').value = '';
       document.getElementById('vHostPhone').value = '';
@@ -1500,7 +1565,6 @@ const App = {
       document.getElementById('vBuilding').value = '';
       return;
     }
-    document.getElementById('vHostDocument').value = user.document_id || '';
     document.getElementById('vHostJobTitle').value = user.job_title || '';
     document.getElementById('vHostEmail').value = user.email || '';
     document.getElementById('vHostPhone').value = user.phone || '';
@@ -1554,9 +1618,12 @@ const App = {
     document.getElementById('companyFormId').value = '';
     errorDiv.classList.add('d-none');
 
+    const adminSection = document.getElementById('cfAdminSection');
+
     if (companyId) {
       title.innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Empresa';
       activeGroup.classList.remove('d-none');
+      if (adminSection) adminSection.classList.add('d-none');
       this.editingCompanyId = companyId;
       API.getCompany(companyId).then((data) => {
         const c = data.company;
@@ -1569,8 +1636,9 @@ const App = {
         document.getElementById('cfActive').value = String(c.active);
       }).catch(() => this.toast('Error al cargar empresa', 'danger'));
     } else {
-      title.innerHTML = '<i class="bi bi-building me-2"></i>Nueva Empresa';
+      title.innerHTML = '<i class="bi bi-building-add me-2"></i>Registrar nueva empresa';
       activeGroup.classList.add('d-none');
+      if (adminSection) adminSection.classList.remove('d-none');
       this.editingCompanyId = null;
     }
     modal.show();
@@ -1602,8 +1670,30 @@ const App = {
         await API.updateCompany(id, payload);
         this.toast('Empresa actualizada', 'success');
       } else {
-        await API.createCompany(payload);
-        this.toast('Empresa creada', 'success');
+        const adminName = document.getElementById('cfAdminName').value.trim();
+        const adminUser = document.getElementById('cfAdminUser').value.trim();
+        const adminPass = document.getElementById('cfAdminPass').value;
+        const adminPassConfirm = document.getElementById('cfAdminPassConfirm').value;
+        if (!adminName || !adminUser || !adminPass) {
+          errorDiv.textContent = 'Completa los datos del administrador';
+          errorDiv.classList.remove('d-none');
+          return;
+        }
+        if (adminPass !== adminPassConfirm) {
+          errorDiv.textContent = 'Las contraseñas del administrador no coinciden';
+          errorDiv.classList.remove('d-none');
+          return;
+        }
+        await API.registerCompany({
+          company_name: payload.name,
+          rif: payload.rif,
+          company_email: payload.email,
+          company_phone: payload.phone,
+          admin_name: adminName,
+          username: adminUser,
+          password: adminPass,
+        });
+        this.toast('Empresa registrada correctamente', 'success');
       }
       bootstrap.Modal.getInstance(document.getElementById('companyFormModal')).hide();
       this.loadCompanies();
@@ -1644,11 +1734,8 @@ const App = {
   },
 
   statusBadge(status) {
-    const labels = {
-      pending: 'Pendiente', checked_in: 'En instalaciones',
-      checked_out: 'Salida registrada', cancelled: 'Cancelada',
-    };
-    return `<span class="badge badge-status badge-${status}">${labels[status] || status}</span>`;
+    const key = { pending: 'status_pending', checked_in: 'status_checked_in', checked_out: 'status_checked_out', cancelled: 'status_cancelled' }[status];
+    return `<span class="badge badge-status badge-${status}">${key ? t(key) : status}</span>`;
   },
 
   formatDateTime(date) {
