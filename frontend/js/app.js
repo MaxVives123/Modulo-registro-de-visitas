@@ -30,7 +30,7 @@ const App = {
   bindEvents() {
     document.getElementById('loginForm').addEventListener('submit', (e) => this.handleLogin(e));
     document.getElementById('registerForm').addEventListener('submit', (e) => this.handleRegisterCompany(e));
-    document.getElementById('showRegisterLink').addEventListener('click', (e) => { e.preventDefault(); this.showRegister(); });
+    document.getElementById('showRegisterLink')?.addEventListener('click', (e) => { e.preventDefault(); this.showRegister(); });
     document.getElementById('showLoginLink').addEventListener('click', (e) => { e.preventDefault(); this.showLoginForm(); });
     document.getElementById('logoutBtn').addEventListener('click', () => this.handleLogout());
     document.getElementById('visitForm').addEventListener('submit', (e) => this.handleVisitSubmit(e));
