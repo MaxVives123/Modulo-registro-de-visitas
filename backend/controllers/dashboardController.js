@@ -40,14 +40,16 @@ async function getActivityChart(req, res, next) {
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
+    // Usar check_in si existe, sino created_at; así cambiar la fecha de entrada se refleja en la gráfica
+    const dateExpr = fn('DATE', fn('COALESCE', col('check_in'), col('created_at')));
     const activity = await Visit.findAll({
       attributes: [
-        [fn('DATE', col('created_at')), 'date'],
+        [dateExpr, 'date'],
         [fn('COUNT', col('id')), 'count'],
       ],
       where: { ...scope, created_at: { [Op.gte]: startDate } },
-      group: [fn('DATE', col('created_at'))],
-      order: [[fn('DATE', col('created_at')), 'ASC']],
+      group: [dateExpr],
+      order: [[dateExpr, 'ASC']],
       raw: true,
     });
 

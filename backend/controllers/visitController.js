@@ -179,9 +179,16 @@ async function update(req, res, next) {
       'check_in', 'check_out',
     ];
 
+    // Campos de texto opcionales que deben guardarse como NULL si están vacíos
+    const nullableStrFields = new Set([
+      'visitor_company', 'visitor_document', 'visitor_email', 'visitor_phone',
+      'notes', 'signature', 'host_name', 'host_email', 'vehicle_plate', 'site', 'building',
+    ]);
     const updates = {};
     allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) updates[field] = req.body[field];
+      if (req.body[field] !== undefined) {
+        updates[field] = nullableStrFields.has(field) ? nullIfEmpty(req.body[field]) : req.body[field];
+      }
     });
 
     await visit.update(updates);
