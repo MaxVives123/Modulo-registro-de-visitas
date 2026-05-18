@@ -758,19 +758,19 @@
           <form id="userForm" novalidate>
             <input type="hidden" id="userFormId">
 
-            <!-- Sección: Acceso al sistema -->
-            <p class="fw-semibold text-primary mb-2" data-i18n="user_section_credentials"><i class="bi bi-lock me-1"></i>Credenciales de acceso</p>
-            <div class="row g-2 mb-3">
+            <!-- Sección: Acceso al sistema (solo para usuarios de plataforma) -->
+            <p class="fw-semibold text-primary mb-2 user-platform-only" data-i18n="user_section_credentials"><i class="bi bi-lock me-1"></i>Credenciales de acceso</p>
+            <div class="row g-2 mb-3 user-platform-only">
               <div class="col-md-4">
                 <label for="ufUsername" class="form-label" data-i18n="user_field_username">Usuario <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="ufUsername" required maxlength="50" autocomplete="off">
+                <input type="text" class="form-control" id="ufUsername" maxlength="50" autocomplete="off">
               </div>
               <div class="col-md-4" id="ufPasswordGroup">
                 <label for="ufPassword" class="form-label" data-i18n="user_field_password">Contraseña <span class="text-danger">*</span></label>
                 <input type="password" class="form-control" id="ufPassword" minlength="8" maxlength="100" autocomplete="new-password">
                 <small class="text-muted">Mín. 8 caracteres</small>
               </div>
-              <div class="col-md-2 user-platform-only" id="ufRoleGroup">
+              <div class="col-md-2" id="ufRoleGroup">
                 <label for="ufRole" class="form-label" data-i18n="user_field_role">Rol</label>
                 <select class="form-select" id="ufRole"></select>
               </div>
@@ -778,26 +778,26 @@
                 <label class="form-label">Rol</label>
                 <p class="form-control-plaintext mb-0 border rounded px-2 py-1 bg-light" id="ufRoleLabel">—</p>
               </div>
-              <div class="col-md-2 d-none" id="ufActiveGroup">
-                <label class="form-label" data-i18n="user_field_status">Estado</label>
-                <select class="form-select" id="ufActive">
-                  <option value="true">Activo</option>
-                  <option value="false">Inactivo</option>
-                </select>
-              </div>
             </div>
 
             <hr class="my-2">
             <!-- Sección: Información personal -->
             <p class="fw-semibold text-primary mb-2" data-i18n="user_section_personal"><i class="bi bi-person me-1"></i>Información personal</p>
             <div class="row g-2 mb-3">
-              <div class="col-md-6">
+              <div class="col-md-5">
                 <label for="ufFullName" class="form-label" data-i18n="user_field_fullname">Nombre Completo <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="ufFullName" required maxlength="100">
               </div>
-              <div class="col-md-6">
+              <div class="col-md-5">
                 <label for="ufPhone" class="form-label" data-i18n="user_field_phone">Teléfono</label>
                 <input type="text" class="form-control" id="ufPhone" maxlength="20" placeholder="+34 612 345 678">
+              </div>
+              <div class="col-md-2" id="ufActiveGroup">
+                <label class="form-label" data-i18n="user_field_status">Estado</label>
+                <select class="form-select" id="ufActive">
+                  <option value="true">Activo</option>
+                  <option value="false">Inactivo</option>
+                </select>
               </div>
               <div class="col-md-6">
                 <label for="ufEmail" class="form-label" data-i18n="user_field_email">Email de contacto</label>
@@ -1040,6 +1040,6 @@
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
   <script src="js/i18n.js?v=3"></script>
   <script src="js/api.js?v=22"></script>
-  <script src="js/app.js?v=31"></script>
+  <script src="js/app.js?v=32"></script>
 </body>
 </html>

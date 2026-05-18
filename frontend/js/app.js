@@ -1328,7 +1328,6 @@ const App = {
     const title = document.getElementById('userFormTitle');
     const usernameInput = document.getElementById('ufUsername');
     const pwGroup = document.getElementById('ufPasswordGroup');
-    const activeGroup = document.getElementById('ufActiveGroup');
     const errorDiv = document.getElementById('userFormError');
     const roleSelect = document.getElementById('ufRole');
     const roleGroup = document.getElementById('ufRoleGroup');
@@ -1339,27 +1338,7 @@ const App = {
     document.getElementById('userFormId').value = '';
     errorDiv.classList.add('d-none');
 
-    // Ajustar opciones de rol según tipo de formulario y permisos.
-    if (roleGroup && roleReadonly && roleLabelEl) {
-      if (fromPlatform || this.isSuperAdmin()) {
-        roleGroup.classList.remove('d-none');
-        roleReadonly.classList.add('d-none');
-      } else {
-        roleGroup.classList.add('d-none');
-        if (userId) {
-          roleReadonly.classList.remove('d-none');
-        } else {
-          roleReadonly.classList.add('d-none');
-        }
-      }
-    }
-
-    if (roleSelect) {
-      roleSelect.innerHTML = fromPlatform
-        ? '<option value="user">Usuario</option><option value="admin_empresa">Admin</option>'
-        : '<option value="user">Empleado</option>';
-    }
-
+    // Sección credenciales: solo visible para usuarios de plataforma (gestionado por CSS user-platform-only)
     document.querySelectorAll('#userForm .user-platform-only').forEach((el) => {
       el.classList.toggle('d-none', !fromPlatform);
     });
@@ -1367,17 +1346,29 @@ const App = {
       el.classList.toggle('d-none', fromPlatform);
     });
 
+    // Rol: solo para usuarios de plataforma o superadmin
+    if (roleGroup && roleReadonly && roleLabelEl) {
+      const showRoleEdit = fromPlatform || this.isSuperAdmin();
+      roleGroup.classList.toggle('d-none', !showRoleEdit);
+      roleReadonly.classList.toggle('d-none', !(!showRoleEdit && userId));
+    }
+    if (roleSelect) {
+      roleSelect.innerHTML = fromPlatform
+        ? '<option value="user">Usuario</option><option value="admin_empresa">Admin</option>'
+        : '<option value="user">Empleado</option>';
+    }
+
     if (userId) {
+      // Edición
       title.innerHTML = fromPlatform
         ? '<i class="bi bi-pencil me-2"></i>Editar usuario'
         : '<i class="bi bi-pencil me-2"></i>Editar empleado';
-      usernameInput.disabled = true;
-      pwGroup.classList.add('d-none');
-      activeGroup.classList.remove('d-none');
+      if (usernameInput) usernameInput.disabled = true;
+      if (pwGroup) pwGroup.classList.add('d-none');
       API.getUser(userId).then((data) => {
         const u = data.user;
         document.getElementById('userFormId').value = u.id;
-        usernameInput.value = u.username;
+        if (usernameInput) usernameInput.value = u.username;
         document.getElementById('ufFullName').value = u.full_name || '';
         if (fromPlatform || this.isSuperAdmin()) {
           document.getElementById('ufRole').value = u.role || 'user';
@@ -1395,18 +1386,14 @@ const App = {
         document.getElementById('ufBuilding').value = u.building || '';
       }).catch(() => this.toast('Error al cargar usuario', 'danger'));
     } else {
+      // Creación
       title.innerHTML = fromPlatform
         ? '<i class="bi bi-person-badge me-2"></i>Nuevo usuario de plataforma'
         : '<i class="bi bi-person-plus me-2"></i>Nuevo empleado';
-      usernameInput.disabled = false;
-      if (fromPlatform) {
-        pwGroup.classList.remove('d-none');
-        activeGroup.classList.add('d-none');
-      } else {
-        pwGroup.classList.add('d-none');
-        activeGroup.classList.remove('d-none');
-        document.getElementById('ufActive').value = 'true';
-      }
+      if (usernameInput) usernameInput.disabled = false;
+      // Contraseña: solo para usuarios de plataforma nuevos
+      if (pwGroup) pwGroup.classList.toggle('d-none', !fromPlatform);
+      document.getElementById('ufActive').value = 'true';
       document.getElementById('ufDocumentId').value = '';
     }
     modal.show();
@@ -1446,15 +1433,34 @@ const App = {
         await API.updateUser(id, updateData);
         this.toast(this._userFormFromPlatform ? 'Usuario actualizado' : 'Empleado actualizado', 'success');
       } else {
-        const password = document.getElementById('ufPassword').value;
-        if (!password || password.length < 8) {
-          errorDiv.textContent = 'La contraseña debe tener al menos 8 caracteres';
-          errorDiv.classList.remove('d-none');
-          return;
+        let username, password;
+        if (this._userFormFromPlatform) {
+          // Usuario de plataforma: requiere credenciales del formulario
+          username = document.getElementById('ufUsername').value.trim();
+          password = document.getElementById('ufPassword').value;
+          if (!username) {
+            errorDiv.textContent = 'El nombre de usuario es obligatorio';
+            errorDiv.classList.remove('d-none');
+            return;
+          }
+          if (!password || password.length < 8) {
+            errorDiv.textContent = 'La contraseña debe tener al menos 8 caracteres';
+            errorDiv.classList.remove('d-none');
+            return;
+          }
+        } else {
+          // Empleado: auto-generar credenciales internas (no necesitará acceder)
+          const fullName = document.getElementById('ufFullName').value.trim();
+          const safeName = fullName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '_').substring(0, 12);
+          const suffix = Math.floor(Math.random() * 9000) + 1000;
+          username = `emp_${safeName}_${suffix}`;
+          password = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + '1!';
         }
+        const active = document.getElementById('ufActive').value === 'true';
         await API.createUser({
-          username: document.getElementById('ufUsername').value.trim(),
+          username,
           password,
+          active,
           ...this._collectUserFormData(),
         });
         this.toast(this._userFormFromPlatform ? 'Usuario creado' : 'Empleado creado', 'success');
